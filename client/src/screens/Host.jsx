@@ -13,6 +13,8 @@ import {
   toLeaderboard,
   teamLeaderboard,
   makeTeams,
+  getGameState,
+  getRoundResults,
   TIME_LIMIT,
 } from '../game.js';
 import Timer from '../components/Timer.jsx';
@@ -21,6 +23,12 @@ import Leaderboard from '../components/Leaderboard.jsx';
 import Explanation from '../components/Explanation.jsx';
 
 const CHAPTERS = chapterList();
+
+// حفظ جلسة المضيف محليًا لاستئنافها بعد تحديث الصفحة (تتضمّن الأسئلة مع الإجابات — على جهاز المضيف فقط).
+const HOST_KEY = 'aqim_host';
+const saveHost = (s) => localStorage.setItem(HOST_KEY, JSON.stringify(s));
+const loadHost = () => { try { return JSON.parse(localStorage.getItem(HOST_KEY) || 'null'); } catch { return null; } };
+const clearHost = () => localStorage.removeItem(HOST_KEY);
 
 export default function Host({ onExit }) {
   const [stage, setStage] = useState('pick'); // pick | lobby | question | results | over
@@ -34,6 +42,7 @@ export default function Host({ onExit }) {
   const [answeredCount, setAnsweredCount] = useState(0);
   const [reveal, setReveal] = useState(null);
   const [roundResults, setRoundResults] = useState([]);
+  const [questionSeconds, setQuestionSeconds] = useState(TIME_LIMIT);
 
   const questionsRef = useRef([]); // الأسئلة مع الإجابات (في متصفّح المضيف فقط)
   const totalRef = useRef(0);
@@ -43,6 +52,49 @@ export default function Host({ onExit }) {
   const players = Object.values(playersObj);
   playersCountRef.current = players.length;
   const teamColor = (name) => makeTeams(teamCount).find((t) => t.name === name)?.color || 'var(--teal)';
+
+  // استئناف جلسة المضيف تلقائيًا بعد تحديث الصفحة.
+  useEffect(() => {
+    const hs = loadHost();
+    if (!hs?.pin || !hs?.quiz) return;
+    getGameState(hs.pin).then(async (gs) => {
+      if (!gs) { clearHost(); return; }
+      questionsRef.current = hs.quiz;
+      totalRef.current = hs.quiz.length;
+      setMode(hs.mode || 'solo');
+      setTeamCount(hs.teamCount || 2);
+      setPin(hs.pin);
+      setSectionTitle(gs.meta.sectionTitle);
+      const st = gs.meta.state;
+      if (st === 'question' && gs.current) {
+        const i = gs.current.index;
+        revealedRef.current = -1;
+        setIndex(i);
+        setQ({ ...hs.quiz[i], index: i, total: hs.quiz.length });
+        const remain = TIME_LIMIT - (Date.now() - (gs.current.startAt || Date.now())) / 1000;
+        setQuestionSeconds(Math.max(1, Math.round(remain)));
+        setStage('question');
+      } else if (st === 'results' && gs.current) {
+        const i = gs.current.index;
+        revealedRef.current = i;
+        const question = hs.quiz[i];
+        setIndex(i);
+        setQ({ ...question, index: i, total: hs.quiz.length });
+        setRoundResults(await getRoundResults(hs.pin, question, i));
+        setReveal({
+          correctIndex: question.correctIndex,
+          explanation: question.explanation,
+          source: question.source,
+          isLast: i >= hs.quiz.length - 1,
+        });
+        setStage('results');
+      } else if (st === 'over') {
+        setStage('over');
+      } else {
+        setStage('lobby');
+      }
+    });
+  }, []);
 
   // اشتراك دائم بقائمة اللاعبين بعد إنشاء الجلسة.
   useEffect(() => {
@@ -78,6 +130,7 @@ export default function Host({ onExit }) {
       });
       questionsRef.current = quiz;
       totalRef.current = quiz.length;
+      saveHost({ pin, quiz, mode, teamCount }); // لاستئناف المضيف بعد التحديث
       setPin(pin);
       setSectionTitle(sectionTitle);
       setStage('lobby');
@@ -93,6 +146,7 @@ export default function Host({ onExit }) {
     setAnsweredCount(0);
     setIndex(i);
     setQ({ ...question, index: i, total: totalRef.current });
+    setQuestionSeconds(TIME_LIMIT);
     setStage('question');
     await showQuestion(pin, question, i, totalRef.current);
   };
@@ -124,6 +178,7 @@ export default function Host({ onExit }) {
 
   const quit = async () => {
     if (pin) await deleteGame(pin).catch(() => {});
+    clearHost();
     onExit();
   };
 
@@ -209,7 +264,7 @@ export default function Host({ onExit }) {
           <span>سؤال {q.index + 1} / {q.total}</span>
           <span>أجاب {answeredCount} / {players.length}</span>
         </div>
-        <Timer seconds={TIME_LIMIT} onEnd={() => reveal_(index)} />
+        <Timer seconds={questionSeconds} onEnd={() => reveal_(index)} />
         <div className="q-text">{q.question}</div>
         <div className={`answers-grid ${q.type === 'truefalse' ? 'tf' : ''}`}>
           {q.options.map((opt, i) => (

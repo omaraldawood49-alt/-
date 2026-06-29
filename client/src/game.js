@@ -139,6 +139,45 @@ export async function endGame(pin) {
   await update(gref(pin, 'meta'), { state: 'over' });
 }
 
+// قراءة حالة اللعبة مرة واحدة (لاستئناف المضيف بعد تحديث الصفحة).
+export async function getGameState(pin) {
+  const snap = await get(gref(pin));
+  if (!snap.exists()) return null;
+  const v = snap.val();
+  if (!v.meta) return null;
+  return { meta: v.meta, current: v.current || null };
+}
+
+// إعادة حساب نتائج جولة (للعرض عند الاستئناف) دون تعديل النقاط.
+export async function getRoundResults(pin, question, index) {
+  const [playersSnap, answersSnap, startSnap] = await Promise.all([
+    get(gref(pin, 'players')),
+    get(gref(pin, `answers/${index}`)),
+    get(gref(pin, 'current/startAt')),
+  ]);
+  const players = playersSnap.val() || {};
+  const answers = answersSnap.val() || {};
+  const startAt = startSnap.val() || 0;
+  const rr = [];
+  for (const [pid, p] of Object.entries(players)) {
+    const a = answers[pid];
+    const correct = !!a && a.answerIndex === question.correctIndex;
+    const timeMs = a ? Math.max(0, a.at - startAt) : null;
+    let gain = 0;
+    if (correct) {
+      const el = Math.max(0, Math.min(TIME_LIMIT, timeMs / 1000));
+      gain = Math.round(POINTS_BASE * (0.5 + 0.5 * (1 - el / TIME_LIMIT)));
+    }
+    rr.push({ name: p.name, correct, gain, timeMs });
+  }
+  rr.sort((x, y) => {
+    if (x.correct !== y.correct) return x.correct ? -1 : 1;
+    if (x.correct) return (x.timeMs ?? Infinity) - (y.timeMs ?? Infinity);
+    return 0;
+  });
+  return rr;
+}
+
 export async function deleteGame(pin) {
   await remove(gref(pin));
 }
