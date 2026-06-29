@@ -31,7 +31,7 @@ const loadHost = () => { try { return JSON.parse(localStorage.getItem(HOST_KEY) 
 const clearHost = () => localStorage.removeItem(HOST_KEY);
 
 export default function Host({ onExit }) {
-  const [stage, setStage] = useState('pick'); // pick | lobby | question | results | over
+  const [stage, setStage] = useState(loadHost()?.pin ? 'resuming' : 'pick'); // resuming | pick | lobby | question | results | over
   const [mode, setMode] = useState('solo'); // solo | team
   const [teamCount, setTeamCount] = useState(2); // عدد الفِرَق (2–10)
   const [pin, setPin] = useState(null);
@@ -56,9 +56,9 @@ export default function Host({ onExit }) {
   // استئناف جلسة المضيف تلقائيًا بعد تحديث الصفحة.
   useEffect(() => {
     const hs = loadHost();
-    if (!hs?.pin || !hs?.quiz) return;
+    if (!hs?.pin || !hs?.quiz) { clearHost(); setStage('pick'); return; }
     getGameState(hs.pin).then(async (gs) => {
-      if (!gs) { clearHost(); return; }
+      if (!gs) { clearHost(); setStage('pick'); return; }
       questionsRef.current = hs.quiz;
       totalRef.current = hs.quiz.length;
       setMode(hs.mode || 'solo');
@@ -181,6 +181,16 @@ export default function Host({ onExit }) {
     clearHost();
     onExit();
   };
+
+  // ===== استئناف بعد التحديث =====
+  if (stage === 'resuming') {
+    return (
+      <div className="card">
+        <h2 style={{ color: 'var(--olive)' }}>جارٍ استئناف جلستك…</h2>
+        <div className="spinner" />
+      </div>
+    );
+  }
 
   // ===== اختيار القسم =====
   if (stage === 'pick') {
