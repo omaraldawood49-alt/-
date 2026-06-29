@@ -15,7 +15,7 @@ export const sections = [
   },
   {
     id: 'salah-afaal',
-    title: 'الصلاة (أفعالها)',
+    title: 'صفة الصلاة',
     description: 'أفعال وهيئات الصلاة كاملة والتنبيهات الشائعة',
     color: '#1C919E',
     questions: salah,

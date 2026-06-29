@@ -6,13 +6,12 @@ import {
   push,
   remove,
   onValue,
-  onDisconnect,
   serverTimestamp,
 } from 'firebase/database';
 import { db } from './firebase.js';
 import { getSection } from './data/index.js';
 
-const POINTS_BASE = 1000;
+const POINTS_BASE = 100; // أعلى درجة للسؤال الواحد
 export const TIME_LIMIT = 20;
 
 const gref = (pin, path = '') => ref(db, `games/${pin}${path ? '/' + path : ''}`);
@@ -131,9 +130,25 @@ export async function joinGame(pin, name) {
   if (meta.state !== 'lobby') return { error: 'بدأت اللعبة بالفعل' };
   const clean = String(name || '').trim().slice(0, 20) || 'لاعب';
   const playerRef = push(gref(pin, 'players'));
+  // لا نزيل اللاعب عند الانقطاع؛ ليتمكّن من العودة ومواصلة اللعب بنقاطه.
   await set(playerRef, { name: clean, score: 0, streak: 0, joinedAt: serverTimestamp() });
-  onDisconnect(playerRef).remove(); // إزالة اللاعب تلقائيًا عند انقطاعه.
   return { playerId: playerRef.key, sectionTitle: meta.sectionTitle };
+}
+
+// استئناف لاعب موجود (بعد إعادة فتح التطبيق أو انقطاع مؤقت).
+export async function resumePlayer(pin, playerId) {
+  const [metaSnap, pSnap] = await Promise.all([
+    get(gref(pin, 'meta')),
+    get(gref(pin, `players/${playerId}`)),
+  ]);
+  if (!metaSnap.exists() || !pSnap.exists()) return { error: 'انتهت الجلسة' };
+  return { ok: true, sectionTitle: metaSnap.val().sectionTitle };
+}
+
+// هل أجاب اللاعب هذا السؤال؟ (لمنع تكرار الإجابة بعد العودة)
+export async function hasAnswered(pin, index, playerId) {
+  const s = await get(gref(pin, `answers/${index}/${playerId}`));
+  return s.exists();
 }
 
 export async function submitAnswer(pin, index, playerId, answerIndex) {

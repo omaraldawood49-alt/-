@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   joinGame,
+  resumePlayer,
+  hasAnswered,
   submitAnswer,
   watchMeta,
   watchCurrent,
@@ -8,6 +10,11 @@ import {
   watchPlayer,
 } from '../game.js';
 import AnswerButton from '../components/AnswerButton.jsx';
+
+const SESSION_KEY = 'aqim_session';
+const saveSession = (s) => localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+const loadSession = () => { try { return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch { return null; } };
+const clearSession = () => localStorage.removeItem(SESSION_KEY);
 
 export default function Player({ onExit, initialPin = '' }) {
   const [joined, setJoined] = useState(false);
@@ -24,6 +31,31 @@ export default function Player({ onExit, initialPin = '' }) {
   const [answeredIndex, setAnsweredIndex] = useState(-1);
   const pinRef = useRef('');
 
+  // استئناف الجلسة المحفوظة تلقائيًا عند فتح التطبيق (إن وُجدت وما زالت قائمة).
+  useEffect(() => {
+    const s = loadSession();
+    if (!s?.pin || !s?.playerId) return;
+    resumePlayer(s.pin, s.playerId).then((res) => {
+      if (res.ok) {
+        pinRef.current = s.pin;
+        setPlayerId(s.playerId);
+        setName(s.name || '');
+        setSectionTitle(res.sectionTitle);
+        setJoined(true);
+      } else {
+        clearSession();
+      }
+    });
+  }, []);
+
+  // بعد العودة أثناء سؤال: إن كان قد أجاب فعلًا، لا تعرض السؤال مجددًا.
+  useEffect(() => {
+    if (!joined || !playerId || meta?.state !== 'question' || !current) return;
+    hasAnswered(pinRef.current, current.index, playerId).then((did) => {
+      if (did) setAnsweredIndex(current.index);
+    });
+  }, [joined, playerId, current?.index, meta?.state]);
+
   useEffect(() => {
     if (!joined) return;
     const p = pinRef.current;
@@ -32,6 +64,7 @@ export default function Player({ onExit, initialPin = '' }) {
         if (m === null) {
           setError('انتهت الجلسة من قبل المعلّم');
           setJoined(false);
+          clearSession();
         } else setMeta(m);
       }),
       watchCurrent(p, setCurrent),
@@ -51,6 +84,7 @@ export default function Player({ onExit, initialPin = '' }) {
       setPlayerId(res.playerId);
       setSectionTitle(res.sectionTitle);
       setJoined(true);
+      saveSession({ pin: pin.trim(), playerId: res.playerId, name: name.trim() });
     } catch (e) {
       setError('تعذّر الاتصال. تأكّد من الرمز وإعداد Firebase.');
     }
@@ -60,6 +94,8 @@ export default function Player({ onExit, initialPin = '' }) {
     setAnsweredIndex(current.index);
     submitAnswer(pinRef.current, current.index, playerId, i).catch(() => {});
   };
+
+  const exit = () => { clearSession(); onExit(); };
 
   // ===== الانضمام =====
   if (!joined) {
@@ -73,7 +109,7 @@ export default function Player({ onExit, initialPin = '' }) {
         <input className="field" placeholder="اسمك" maxLength={20} value={name}
           onChange={(e) => setName(e.target.value)} />
         <button className="btn teal" onClick={join}>انضمام</button>
-        <button className="btn ghost" style={{ marginTop: 10 }} onClick={onExit}>رجوع</button>
+        <button className="btn ghost" style={{ marginTop: 10 }} onClick={exit}>رجوع</button>
       </div>
     );
   }
@@ -88,7 +124,7 @@ export default function Player({ onExit, initialPin = '' }) {
         <p className="big-wait">{name}</p>
         <p className="gain" style={{ fontSize: '2.2rem' }}>{me?.score ?? 0} نقطة</p>
         <p className="muted" style={{ margin: '14px 0' }}>شاهد ترتيبك النهائي على شاشة المعلّم.</p>
-        <button className="btn" onClick={onExit}>خروج</button>
+        <button className="btn" onClick={exit}>خروج</button>
       </div>
     );
   }

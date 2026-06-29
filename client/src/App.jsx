@@ -8,9 +8,13 @@ import { isConfigured } from './firebase.js';
 
 // رمز الجلسة من رابط الباركود (?pin=123456) إن وُجد.
 const initialPin = new URLSearchParams(window.location.search).get('pin') || '';
+// جلسة لاعب محفوظة (لاستئنافها تلقائيًا بعد الخروج/إعادة الفتح).
+const hasSavedSession = !!localStorage.getItem('aqim_session');
 
 export default function App() {
-  const [mode, setMode] = useState(initialPin ? 'player' : 'home'); // home | host | player | admin
+  const [mode, setMode] = useState(
+    initialPin || hasSavedSession ? 'player' : 'home'
+  ); // home | host | player | admin | guide
 
   if (!isConfigured) {
     return (
