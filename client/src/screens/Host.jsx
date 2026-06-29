@@ -1,59 +1,108 @@
-import { useEffect, useState } from 'react';
-import { socket } from '../socket.js';
+import { useEffect, useRef, useState } from 'react';
+import { sectionSummaries } from '../data/index.js';
+import {
+  createGame,
+  showQuestion,
+  revealAndScore,
+  endGame,
+  deleteGame,
+  watchPlayers,
+  watchAnswers,
+  toLeaderboard,
+  TIME_LIMIT,
+} from '../game.js';
 import Timer from '../components/Timer.jsx';
 import AnswerButton from '../components/AnswerButton.jsx';
 import Leaderboard from '../components/Leaderboard.jsx';
 
+const summaries = sectionSummaries();
+
 export default function Host({ onExit }) {
-  const [sections, setSections] = useState([]);
   const [stage, setStage] = useState('pick'); // pick | lobby | question | results | over
   const [pin, setPin] = useState(null);
   const [sectionTitle, setSectionTitle] = useState('');
-  const [players, setPlayers] = useState([]);
+  const [playersObj, setPlayersObj] = useState({});
+  const [index, setIndex] = useState(-1);
   const [q, setQ] = useState(null);
-  const [answered, setAnswered] = useState({ answered: 0, totalPlayers: 0 });
-  const [results, setResults] = useState(null);
-  const [podium, setPodium] = useState(null);
+  const [answeredCount, setAnsweredCount] = useState(0);
+  const [reveal, setReveal] = useState(null);
 
+  const questionsRef = useRef([]); // الأسئلة مع الإجابات (في متصفّح المضيف فقط)
+  const totalRef = useRef(0);
+  const revealedRef = useRef(-1); // آخر فهرس تم كشفه (منع الكشف المزدوج)
+  const playersCountRef = useRef(0);
+
+  const players = Object.values(playersObj);
+  playersCountRef.current = players.length;
+
+  // اشتراك دائم بقائمة اللاعبين بعد إنشاء الجلسة.
   useEffect(() => {
-    fetch('/api/sections')
-      .then((r) => r.json())
-      .then(setSections)
-      .catch(() => {});
+    if (!pin) return;
+    const off = watchPlayers(pin, setPlayersObj);
+    return off;
+  }, [pin]);
 
-    socket.on('lobby:update', ({ players }) => setPlayers(players));
-    socket.on('question:show', (payload) => {
-      setResults(null);
-      setQ(payload);
-      setAnswered({ answered: 0, totalPlayers: players.length });
-      setStage('question');
+  // اشتراك بإجابات السؤال الحالي للكشف المبكر عند إجابة الجميع.
+  useEffect(() => {
+    if (!pin || stage !== 'question' || index < 0) return;
+    const off = watchAnswers(pin, index, (answers) => {
+      const count = Object.keys(answers).length;
+      setAnsweredCount(count);
+      if (count > 0 && count >= playersCountRef.current) reveal_(index);
     });
-    socket.on('answers:update', setAnswered);
-    socket.on('question:results', (res) => {
-      setResults(res);
-      setStage('results');
-    });
-    socket.on('game:over', ({ podium, all }) => {
-      setPodium({ podium, all });
-      setStage('over');
-    });
+    return off;
+  }, [pin, stage, index]);
 
-    return () => {
-      socket.off('lobby:update');
-      socket.off('question:show');
-      socket.off('answers:update');
-      socket.off('question:results');
-      socket.off('game:over');
-    };
-  }, [players.length]);
-
-  const createGame = (sectionId) => {
-    socket.emit('host:create', { sectionId }, (res) => {
-      if (res?.error) return alert(res.error);
-      setPin(res.pin);
-      setSectionTitle(res.sectionTitle);
+  const pickSection = async (sectionId) => {
+    try {
+      const { pin, section } = await createGame(sectionId);
+      questionsRef.current = section.questions;
+      totalRef.current = section.questions.length;
+      setPin(pin);
+      setSectionTitle(section.title);
       setStage('lobby');
+    } catch (e) {
+      alert(e.message || 'تعذّر إنشاء الجلسة. تأكّد من إعداد Firebase.');
+    }
+  };
+
+  const goQuestion = async (i) => {
+    const question = questionsRef.current[i];
+    revealedRef.current = -1;
+    setReveal(null);
+    setAnsweredCount(0);
+    setIndex(i);
+    setQ({ ...question, index: i, total: totalRef.current });
+    setStage('question');
+    await showQuestion(pin, question, i, totalRef.current);
+  };
+
+  const reveal_ = async (i) => {
+    if (revealedRef.current === i) return;
+    revealedRef.current = i;
+    const question = questionsRef.current[i];
+    await revealAndScore(pin, question, i);
+    setReveal({
+      correctIndex: question.correctIndex,
+      explanation: question.explanation,
+      isLast: i >= totalRef.current - 1,
     });
+    setStage('results');
+  };
+
+  const next = async () => {
+    const i = index + 1;
+    if (i >= totalRef.current) {
+      await endGame(pin);
+      setStage('over');
+    } else {
+      goQuestion(i);
+    }
+  };
+
+  const quit = async () => {
+    if (pin) await deleteGame(pin).catch(() => {});
+    onExit();
   };
 
   // ===== اختيار القسم =====
@@ -63,22 +112,15 @@ export default function Host({ onExit }) {
         <h2 style={{ color: 'var(--olive)', marginBottom: 6 }}>اختر القسم</h2>
         <p className="subtitle">حدّد القسم الذي ستلعبه مع طلابك</p>
         <div className="sections">
-          {sections.map((s) => (
-            <button
-              key={s.id}
-              className="section-card"
-              style={{ background: s.color }}
-              onClick={() => createGame(s.id)}
-            >
+          {summaries.map((s) => (
+            <button key={s.id} className="section-card" style={{ background: s.color }} onClick={() => pickSection(s.id)}>
               <h3>{s.title}</h3>
               <p>{s.description}</p>
               <span className="count">{s.count} سؤالًا</span>
             </button>
           ))}
         </div>
-        <button className="btn ghost" onClick={onExit}>
-          رجوع
-        </button>
+        <button className="btn ghost" onClick={onExit}>رجوع</button>
       </div>
     );
   }
@@ -92,25 +134,17 @@ export default function Host({ onExit }) {
           <div className="label">رمز الدخول (PIN)</div>
           <div className="pin">{pin}</div>
         </div>
-        <p className="muted">ادخلوا على نفس الرابط، اختاروا «الانضمام»، وأدخلوا الرمز.</p>
+        <p className="muted">يفتح الطلاب نفس الرابط، يختارون «الانضمام»، ويُدخلون الرمز.</p>
         <div className="players">
           {players.length === 0 && <p className="muted">بانتظار انضمام اللاعبين…</p>}
           {players.map((p, i) => (
-            <span key={i} className="player-chip">
-              {p.name}
-            </span>
+            <span key={i} className="player-chip">{p.name}</span>
           ))}
         </div>
-        <button
-          className="btn"
-          disabled={players.length === 0}
-          onClick={() => socket.emit('host:start')}
-        >
+        <button className="btn" disabled={players.length === 0} onClick={() => goQuestion(0)}>
           ابدأ اللعبة ({players.length})
         </button>
-        <button className="btn ghost" style={{ marginTop: 10 }} onClick={onExit}>
-          إنهاء الجلسة
-        </button>
+        <button className="btn ghost" style={{ marginTop: 10 }} onClick={quit}>إنهاء الجلسة</button>
       </div>
     );
   }
@@ -121,18 +155,16 @@ export default function Host({ onExit }) {
       <div className="question-screen">
         <div className="q-head">
           <span>سؤال {q.index + 1} / {q.total}</span>
-          <span>
-            أجاب {answered.answered} / {answered.totalPlayers || players.length}
-          </span>
+          <span>أجاب {answeredCount} / {players.length}</span>
         </div>
-        <Timer seconds={q.timeLimit} onEnd={() => socket.emit('host:reveal')} />
+        <Timer seconds={TIME_LIMIT} onEnd={() => reveal_(index)} />
         <div className="q-text">{q.question}</div>
         <div className={`answers-grid ${q.type === 'truefalse' ? 'tf' : ''}`}>
           {q.options.map((opt, i) => (
             <AnswerButton key={i} index={i} text={opt} disabled />
           ))}
         </div>
-        <button className="btn ghost" style={{ marginTop: 16, maxWidth: 300, margin: '16px auto 0' }} onClick={() => socket.emit('host:reveal')}>
+        <button className="btn ghost" style={{ maxWidth: 300, margin: '16px auto 0' }} onClick={() => reveal_(index)}>
           كشف الإجابة الآن
         </button>
       </div>
@@ -140,68 +172,41 @@ export default function Host({ onExit }) {
   }
 
   // ===== نتائج السؤال =====
-  if (stage === 'results' && results && q) {
+  if (stage === 'results' && reveal && q) {
     return (
       <div className="question-screen">
         <div className="q-text" style={{ fontSize: '1.4rem' }}>{q.question}</div>
         <div className={`answers-grid ${q.type === 'truefalse' ? 'tf' : ''}`}>
           {q.options.map((opt, i) => (
-            <AnswerButton
-              key={i}
-              index={i}
-              text={opt}
-              disabled
-              state={i === results.correctIndex ? 'correct' : 'dim'}
-            />
+            <AnswerButton key={i} index={i} text={opt} disabled state={i === reveal.correctIndex ? 'correct' : 'dim'} />
           ))}
         </div>
-        {results.explanation && (
-          <p className="muted" style={{ marginTop: 14, fontSize: '1.05rem' }}>
-            💡 {results.explanation}
-          </p>
+        {reveal.explanation && (
+          <p className="muted" style={{ marginTop: 14, fontSize: '1.05rem' }}>💡 {reveal.explanation}</p>
         )}
         <h3 style={{ margin: '20px 0 8px', color: 'var(--olive)' }}>الترتيب</h3>
-        <Leaderboard rows={results.leaderboard} />
-        <button className="btn" style={{ maxWidth: 360, margin: '0 auto' }} onClick={() => socket.emit('host:next')}>
-          {results.isLast ? 'عرض النتيجة النهائية' : 'السؤال التالي'}
+        <Leaderboard rows={toLeaderboard(playersObj, 5)} />
+        <button className="btn" style={{ maxWidth: 360, margin: '0 auto' }} onClick={next}>
+          {reveal.isLast ? 'عرض النتيجة النهائية' : 'السؤال التالي'}
         </button>
       </div>
     );
   }
 
   // ===== المنصة النهائية =====
-  if (stage === 'over' && podium) {
-    const [p1, p2, p3] = podium.podium;
+  if (stage === 'over') {
+    const all = toLeaderboard(playersObj, 50);
+    const [p1, p2, p3] = all;
     return (
       <div className="card">
         <h2 style={{ color: 'var(--olive)' }}>🏆 النتيجة النهائية</h2>
         <div className="podium">
-          {p2 && (
-            <div className="place p2">
-              <div className="medal">🥈</div>
-              <div className="pname">{p2.name}</div>
-              <div>{p2.score}</div>
-            </div>
-          )}
-          {p1 && (
-            <div className="place p1">
-              <div className="medal">🥇</div>
-              <div className="pname">{p1.name}</div>
-              <div>{p1.score}</div>
-            </div>
-          )}
-          {p3 && (
-            <div className="place p3">
-              <div className="medal">🥉</div>
-              <div className="pname">{p3.name}</div>
-              <div>{p3.score}</div>
-            </div>
-          )}
+          {p2 && <div className="place p2"><div className="medal">🥈</div><div className="pname">{p2.name}</div><div>{p2.score}</div></div>}
+          {p1 && <div className="place p1"><div className="medal">🥇</div><div className="pname">{p1.name}</div><div>{p1.score}</div></div>}
+          {p3 && <div className="place p3"><div className="medal">🥉</div><div className="pname">{p3.name}</div><div>{p3.score}</div></div>}
         </div>
-        <Leaderboard rows={podium.all} />
-        <button className="btn" onClick={onExit}>
-          جلسة جديدة
-        </button>
+        <Leaderboard rows={all} />
+        <button className="btn" onClick={quit}>جلسة جديدة</button>
       </div>
     );
   }
