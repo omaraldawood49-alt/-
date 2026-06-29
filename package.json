@@ -1,0 +1,17 @@
+{
+  "name": "aqim-salatak",
+  "version": "1.0.0",
+  "private": true,
+  "description": "منصة تعلّم بالتلعيب بأسلوب كاهوت لمنهج «أقم صلاتك»",
+  "scripts": {
+    "dev": "concurrently -n server,client -c green,cyan \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "build": "npm --prefix client install && npm --prefix client run build",
+    "start": "npm --prefix server start",
+    "install:all": "npm --prefix server install && npm --prefix client install"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
