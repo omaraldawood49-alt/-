@@ -52,10 +52,22 @@ export const shuffle = (arr) => {
   return a;
 };
 
-// مزج بتركيز على الفصل الحالي: كل أسئلة الحالي + عيّنة من الفصول السابقة.
+// خلط مواضع الخيارات لكل سؤال (مع إبقاء «صح/خطأ» بترتيبها)، حتى لا تكون
+// الإجابة الصحيحة دائمًا في نفس الموضع/اللون.
+export const shuffleOptions = (q) => {
+  if (q.type === 'truefalse' || !Array.isArray(q.options) || q.options.length < 2) return q;
+  const order = shuffle(q.options.map((_, i) => i));
+  return {
+    ...q,
+    options: order.map((i) => q.options[i]),
+    correctIndex: order.indexOf(q.correctIndex),
+  };
+};
+
+// مزج بتركيز على الفصل الحالي: كل أسئلة الحالي + عيّنة من الفصول السابقة، مع خلط الخيارات.
 export function mixFocus(current, previous) {
   const sampleCount = Math.min(previous.length, Math.max(3, Math.round(current.length * 0.5)));
-  return shuffle([...current, ...shuffle(previous).slice(0, sampleCount)]);
+  return shuffle([...current, ...shuffle(previous).slice(0, sampleCount)]).map(shuffleOptions);
 }
 
 export const sectionSummaries = () =>
