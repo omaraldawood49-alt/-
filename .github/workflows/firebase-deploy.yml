@@ -1,0 +1,30 @@
+name: نشر إلى Firebase
+
+# نشر تلقائي عند كل دفع للفرع، أو يدويًا من تبويب Actions.
+on:
+  push:
+    branches:
+      - main
+      - claude/islamic-curriculum-gamification-2blx3m
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: بناء الواجهة
+        run: npm run build
+
+      - name: النشر (Hosting + قواعد قاعدة البيانات)
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          npx --yes firebase-tools deploy --only hosting,database --project amir-1cb84 --non-interactive

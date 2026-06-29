@@ -2,10 +2,11 @@ import { useState } from 'react';
 import Home from './screens/Home.jsx';
 import Host from './screens/Host.jsx';
 import Player from './screens/Player.jsx';
+import Admin from './screens/Admin.jsx';
 import { isConfigured } from './firebase.js';
 
 export default function App() {
-  const [mode, setMode] = useState('home'); // home | host | player
+  const [mode, setMode] = useState('home'); // home | host | player | admin
 
   if (!isConfigured) {
     return (
@@ -24,9 +25,12 @@ export default function App() {
 
   return (
     <div className="app">
-      {mode === 'home' && <Home onHost={() => setMode('host')} onJoin={() => setMode('player')} />}
+      {mode === 'home' && (
+        <Home onHost={() => setMode('host')} onJoin={() => setMode('player')} onAdmin={() => setMode('admin')} />
+      )}
       {mode === 'host' && <Host onExit={() => setMode('home')} />}
       {mode === 'player' && <Player onExit={() => setMode('home')} />}
+      {mode === 'admin' && <Admin onExit={() => setMode('home')} />}
     </div>
   );
 }

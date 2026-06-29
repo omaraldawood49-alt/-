@@ -21,10 +21,11 @@ const genPin = () => String(Math.floor(100000 + Math.random() * 900000));
 
 // ===================== المضيف =====================
 
-// إنشاء جلسة جديدة. يُعيد القسم كاملًا (مع الإجابات) ليبقى في متصفّح المضيف.
-export async function createGame(sectionId) {
-  const section = getSection(sectionId);
-  if (!section) throw new Error('القسم غير موجود');
+// إنشاء جلسة جديدة. تُمرَّر قائمة الأسئلة (مع الإجابات) لتبقى في متصفّح المضيف.
+export async function createGame(sectionId, questions) {
+  const meta = getSection(sectionId);
+  if (!meta) throw new Error('القسم غير موجود');
+  const list = questions && questions.length ? questions : meta.questions;
   let pin;
   // ضمان تفرّد الرمز.
   // eslint-disable-next-line no-constant-condition
@@ -35,12 +36,12 @@ export async function createGame(sectionId) {
   }
   await set(gref(pin, 'meta'), {
     sectionId,
-    sectionTitle: section.title,
-    total: section.questions.length,
+    sectionTitle: meta.title,
+    total: list.length,
     state: 'lobby',
     createdAt: serverTimestamp(),
   });
-  return { pin, section };
+  return { pin, sectionTitle: meta.title, questions: list };
 }
 
 // عرض سؤال (بدون الإجابة الصحيحة) ومسح كشف السؤال السابق.

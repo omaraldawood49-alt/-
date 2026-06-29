@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { sectionSummaries } from '../data/index.js';
+import { getQuestionsOnce } from '../questions.js';
 import {
   createGame,
   showQuestion,
@@ -55,11 +56,12 @@ export default function Host({ onExit }) {
 
   const pickSection = async (sectionId) => {
     try {
-      const { pin, section } = await createGame(sectionId);
-      questionsRef.current = section.questions;
-      totalRef.current = section.questions.length;
+      const questions = await getQuestionsOnce(sectionId); // من Firebase أو الافتراضي
+      const { pin, sectionTitle } = await createGame(sectionId, questions);
+      questionsRef.current = questions;
+      totalRef.current = questions.length;
       setPin(pin);
-      setSectionTitle(section.title);
+      setSectionTitle(sectionTitle);
       setStage('lobby');
     } catch (e) {
       alert(e.message || 'تعذّر إنشاء الجلسة. تأكّد من إعداد Firebase.');
