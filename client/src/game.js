@@ -20,8 +20,15 @@ const genPin = () => String(Math.floor(100000 + Math.random() * 900000));
 
 // ===================== المضيف =====================
 
+// الفِرَق المتاحة في النمط الجماعي.
+export const TEAMS = [
+  { id: 'green', name: 'الفريق الأخضر', color: '#73821B' },
+  { id: 'teal', name: 'الفريق الفيروزي', color: '#1C919E' },
+];
+
 // إنشاء جلسة جديدة. تُمرَّر قائمة الأسئلة (مع الإجابات) لتبقى في متصفّح المضيف.
-export async function createGame(sectionId, questions) {
+// opts: { mode: 'solo'|'team', titleOverride }
+export async function createGame(sectionId, questions, opts = {}) {
   const meta = getSection(sectionId);
   if (!meta) throw new Error('القسم غير موجود');
   const list = questions && questions.length ? questions : meta.questions;
@@ -35,12 +42,13 @@ export async function createGame(sectionId, questions) {
   }
   await set(gref(pin, 'meta'), {
     sectionId,
-    sectionTitle: meta.title,
+    sectionTitle: opts.titleOverride || meta.title,
     total: list.length,
     state: 'lobby',
+    mode: opts.mode || 'solo',
     createdAt: serverTimestamp(),
   });
-  return { pin, sectionTitle: meta.title, questions: list };
+  return { pin, sectionTitle: opts.titleOverride || meta.title, questions: list };
 }
 
 // عرض سؤال (بدون الإجابة الصحيحة) ومسح كشف السؤال السابق.
@@ -123,16 +131,20 @@ export async function deleteGame(pin) {
 
 // ===================== اللاعب =====================
 
-export async function joinGame(pin, name) {
+export async function joinGame(pin, name, team) {
   const metaSnap = await get(gref(pin, 'meta'));
   if (!metaSnap.exists()) return { error: 'الرمز غير صحيح' };
   const meta = metaSnap.val();
   if (meta.state !== 'lobby') return { error: 'بدأت اللعبة بالفعل' };
+  // في النمط الجماعي يجب اختيار الفريق أولًا.
+  if (meta.mode === 'team' && !team) return { needTeam: true };
   const clean = String(name || '').trim().slice(0, 20) || 'لاعب';
   const playerRef = push(gref(pin, 'players'));
   // لا نزيل اللاعب عند الانقطاع؛ ليتمكّن من العودة ومواصلة اللعب بنقاطه.
-  await set(playerRef, { name: clean, score: 0, streak: 0, joinedAt: serverTimestamp() });
-  return { playerId: playerRef.key, sectionTitle: meta.sectionTitle };
+  const data = { name: clean, score: 0, streak: 0, joinedAt: serverTimestamp() };
+  if (team) data.team = team;
+  await set(playerRef, data);
+  return { playerId: playerRef.key, sectionTitle: meta.sectionTitle, mode: meta.mode };
 }
 
 // استئناف لاعب موجود (بعد إعادة فتح التطبيق أو انقطاع مؤقت).
@@ -175,3 +187,15 @@ export const toLeaderboard = (playersObj, limit = 50) =>
     .map((p) => ({ name: p.name, score: p.score || 0 }))
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
+
+// ترتيب الفِرَق (مجموع نقاط أعضاء كل فريق).
+export const teamLeaderboard = (playersObj) => {
+  const totals = {};
+  for (const p of Object.values(playersObj || {})) {
+    const t = p.team || 'بلا فريق';
+    totals[t] = (totals[t] || 0) + (p.score || 0);
+  }
+  return Object.entries(totals)
+    .map(([name, score]) => ({ name, score }))
+    .sort((a, b) => b.score - a.score);
+};

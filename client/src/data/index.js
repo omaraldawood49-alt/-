@@ -19,6 +19,12 @@ export const sections = [
     description: 'أفعال وهيئات الصلاة كاملة والتنبيهات الشائعة',
     color: '#1C919E',
     questions: salah,
+    chapters: [
+      { n: 1, title: 'الافتتاح والقيام' },
+      { n: 2, title: 'الركوع والرفع منه' },
+      { n: 3, title: 'السجود وما بين السجدتين' },
+      { n: 4, title: 'التشهد والتسليم والتنبيهات' },
+    ],
   },
   {
     id: 'arkan-shurut-wajibat',
@@ -37,6 +43,28 @@ export const sections = [
 ];
 
 export const getSection = (id) => sections.find((s) => s.id === id);
+
+export const getChapters = (id) => getSection(id)?.chapters || null;
+
+// خلط بسيط (Fisher–Yates)
+const shuffle = (arr) => {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+};
+
+// اختبار الفصل: كل أسئلة الفصل الحالي + عيّنة من الفصول السابقة (تركيز على الحالي).
+export function buildChapterQuiz(sectionId, currentChapter) {
+  const all = getSection(sectionId)?.questions || [];
+  const current = all.filter((q) => (q.chapter || 1) === currentChapter);
+  const previous = all.filter((q) => (q.chapter || 1) < currentChapter);
+  const sampleCount = Math.min(previous.length, Math.max(2, Math.round(current.length * 0.5)));
+  const sampledPrev = shuffle(previous).slice(0, sampleCount);
+  return shuffle([...current, ...sampledPrev]);
+}
 
 export const sectionSummaries = () =>
   sections.map(({ id, title, description, color, questions }) => ({

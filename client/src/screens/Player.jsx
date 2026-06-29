@@ -8,6 +8,7 @@ import {
   watchCurrent,
   watchReveal,
   watchPlayer,
+  TEAMS,
 } from '../game.js';
 import AnswerButton from '../components/AnswerButton.jsx';
 
@@ -29,6 +30,7 @@ export default function Player({ onExit, initialPin = '' }) {
   const [reveal, setReveal] = useState(null);
   const [me, setMe] = useState(null);
   const [answeredIndex, setAnsweredIndex] = useState(-1);
+  const [showTeams, setShowTeams] = useState(false);
   const pinRef = useRef('');
 
   // استئناف الجلسة المحفوظة تلقائيًا عند فتح التطبيق (إن وُجدت وما زالت قائمة).
@@ -74,16 +76,18 @@ export default function Player({ onExit, initialPin = '' }) {
     return () => offs.forEach((off) => off && off());
   }, [joined, playerId]);
 
-  const join = async () => {
+  const join = async (team) => {
     setError('');
     if (!pin.trim() || !name.trim()) return setError('أدخل الرمز والاسم');
     try {
-      const res = await joinGame(pin.trim(), name.trim());
+      const res = await joinGame(pin.trim(), name.trim(), team);
+      if (res.needTeam) return setShowTeams(true); // النمط جماعي: اختر الفريق
       if (res.error) return setError(res.error);
       pinRef.current = pin.trim();
       setPlayerId(res.playerId);
       setSectionTitle(res.sectionTitle);
       setJoined(true);
+      setShowTeams(false);
       saveSession({ pin: pin.trim(), playerId: res.playerId, name: name.trim() });
     } catch (e) {
       setError('تعذّر الاتصال. تأكّد من الرمز وإعداد Firebase.');
@@ -97,6 +101,23 @@ export default function Player({ onExit, initialPin = '' }) {
 
   const exit = () => { clearSession(); onExit(); };
 
+  // ===== اختيار الفريق (النمط الجماعي) =====
+  if (!joined && showTeams) {
+    return (
+      <div className="card">
+        <h2 style={{ color: 'var(--teal)' }}>اختر فريقك</h2>
+        <p className="subtitle">مرحبًا {name}! انضمّ إلى أحد الفريقين</p>
+        {error && <p className="error">{error}</p>}
+        {TEAMS.map((t) => (
+          <button key={t.id} className="btn" style={{ background: t.color, marginBottom: 12 }} onClick={() => join(t.name)}>
+            {t.name}
+          </button>
+        ))}
+        <button className="btn ghost" style={{ marginTop: 4 }} onClick={() => setShowTeams(false)}>رجوع</button>
+      </div>
+    );
+  }
+
   // ===== الانضمام =====
   if (!joined) {
     return (
@@ -108,7 +129,7 @@ export default function Player({ onExit, initialPin = '' }) {
           onChange={(e) => setPin(e.target.value)} style={{ letterSpacing: 6, direction: 'ltr' }} />
         <input className="field" placeholder="اسمك" maxLength={20} value={name}
           onChange={(e) => setName(e.target.value)} />
-        <button className="btn teal" onClick={join}>انضمام</button>
+        <button className="btn teal" onClick={() => join()}>انضمام</button>
         <button className="btn ghost" style={{ marginTop: 10 }} onClick={exit}>رجوع</button>
       </div>
     );
@@ -174,6 +195,7 @@ export default function Player({ onExit, initialPin = '' }) {
   return (
     <div className="card">
       <h2 style={{ color: 'var(--olive)' }}>{name} ✅</h2>
+      {me?.team && <p className="qr-label">فريقك: {me.team}</p>}
       <p className="big-wait">{sectionTitle}</p>
       <div className="spinner" />
       <p className="muted">انضممتَ بنجاح! بانتظار أن يبدأ المعلّم اللعبة…</p>

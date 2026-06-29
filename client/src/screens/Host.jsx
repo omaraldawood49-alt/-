@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { sectionSummaries } from '../data/index.js';
+import { sectionSummaries, getChapters, buildChapterQuiz } from '../data/index.js';
 import { getQuestionsOnce } from '../questions.js';
 import {
   createGame,
@@ -11,6 +11,8 @@ import {
   watchPlayers,
   watchAnswers,
   toLeaderboard,
+  teamLeaderboard,
+  TEAMS,
   TIME_LIMIT,
 } from '../game.js';
 import Timer from '../components/Timer.jsx';
@@ -20,7 +22,9 @@ import Leaderboard from '../components/Leaderboard.jsx';
 const summaries = sectionSummaries();
 
 export default function Host({ onExit }) {
-  const [stage, setStage] = useState('pick'); // pick | lobby | question | results | over
+  const [stage, setStage] = useState('pick'); // pick | chapters | lobby | question | results | over
+  const [mode, setMode] = useState('solo'); // solo | team
+  const [pendingSection, setPendingSection] = useState(null); // قسم به فصول بانتظار اختيار الفصل
   const [pin, setPin] = useState(null);
   const [sectionTitle, setSectionTitle] = useState('');
   const [playersObj, setPlayersObj] = useState({});
@@ -37,6 +41,7 @@ export default function Host({ onExit }) {
 
   const players = Object.values(playersObj);
   playersCountRef.current = players.length;
+  const teamColor = (name) => TEAMS.find((t) => t.name === name)?.color || 'var(--teal)';
 
   // اشتراك دائم بقائمة اللاعبين بعد إنشاء الجلسة.
   useEffect(() => {
@@ -56,10 +61,10 @@ export default function Host({ onExit }) {
     return off;
   }, [pin, stage, index]);
 
-  const pickSection = async (sectionId) => {
+  // إنشاء الجلسة وفتح اللوبي بقائمة أسئلة محدّدة.
+  const startGame = async (sectionId, questions, titleOverride) => {
     try {
-      const questions = await getQuestionsOnce(sectionId); // من Firebase أو الافتراضي
-      const { pin, sectionTitle } = await createGame(sectionId, questions);
+      const { pin, sectionTitle } = await createGame(sectionId, questions, { mode, titleOverride });
       questionsRef.current = questions;
       totalRef.current = questions.length;
       setPin(pin);
@@ -68,6 +73,24 @@ export default function Host({ onExit }) {
     } catch (e) {
       alert(e.message || 'تعذّر إنشاء الجلسة. تأكّد من إعداد Firebase.');
     }
+  };
+
+  const pickSection = async (sectionId) => {
+    // إن كان للقسم فصول، اعرض اختيار الفصل أولًا.
+    if (getChapters(sectionId)) {
+      setPendingSection(sectionId);
+      setStage('chapters');
+      return;
+    }
+    const questions = await getQuestionsOnce(sectionId); // من Firebase أو الافتراضي
+    await startGame(sectionId, questions);
+  };
+
+  // بدء اختبار فصل (تراكمي بتركيز على الفصل الحالي).
+  const pickChapter = async (n) => {
+    const ch = (getChapters(pendingSection) || []).find((c) => c.n === n);
+    const quiz = buildChapterQuiz(pendingSection, n);
+    await startGame(pendingSection, quiz, `صفة الصلاة — فصل ${n}: ${ch?.title || ''}`);
   };
 
   const goQuestion = async (i) => {
@@ -115,17 +138,44 @@ export default function Host({ onExit }) {
     return (
       <div className="card">
         <h2 style={{ color: 'var(--olive)', marginBottom: 6 }}>اختر القسم</h2>
-        <p className="subtitle">حدّد القسم الذي ستلعبه مع طلابك</p>
+        <p className="subtitle">حدّد نمط التنافس ثم القسم</p>
+
+        <div className="mode-toggle">
+          <button className={mode === 'solo' ? 'active' : ''} onClick={() => setMode('solo')}>👤 فردي</button>
+          <button className={mode === 'team' ? 'active' : ''} onClick={() => setMode('team')}>👥 جماعي (فِرَق)</button>
+        </div>
+
         <div className="sections">
           {summaries.map((s) => (
             <button key={s.id} className="section-card" style={{ background: s.color }} onClick={() => pickSection(s.id)}>
               <h3>{s.title}</h3>
               <p>{s.description}</p>
-              <span className="count">{s.count} سؤالًا</span>
+              <span className="count">{getChapters(s.id) ? `${getChapters(s.id).length} فصول` : `${s.count} سؤالًا`}</span>
             </button>
           ))}
         </div>
         <button className="btn ghost" onClick={onExit}>رجوع</button>
+      </div>
+    );
+  }
+
+  // ===== اختيار الفصل (للأقسام ذات الفصول) =====
+  if (stage === 'chapters') {
+    const chapters = getChapters(pendingSection) || [];
+    return (
+      <div className="card">
+        <h2 style={{ color: 'var(--olive)', marginBottom: 6 }}>اختر الفصل</h2>
+        <p className="subtitle">بعد كل فصل: اختبار تراكمي بتركيز على الفصل الحالي</p>
+        <div className="chapter-list">
+          {chapters.map((c) => (
+            <button key={c.n} className="chapter-card" onClick={() => pickChapter(c.n)}>
+              <span className="chapter-n">فصل {c.n}</span>
+              <span className="chapter-title">{c.title}</span>
+              <span className="chapter-hint">{c.n === 1 ? 'أسئلة الفصل الأول' : `الفصول 1–${c.n} (تركيز على ${c.n})`}</span>
+            </button>
+          ))}
+        </div>
+        <button className="btn ghost" onClick={() => setStage('pick')}>رجوع</button>
       </div>
     );
   }
@@ -150,10 +200,13 @@ export default function Host({ onExit }) {
           <div className="qr-label">📷 امسح الباركود للانضمام مباشرةً</div>
         </div>
         <p className="muted">أو افتحوا الرابط، اختاروا «الانضمام»، وأدخلوا الرمز.</p>
+        {mode === 'team' && <p className="qr-label">👥 نمط جماعي — يختار كل طالب فريقه عند الانضمام</p>}
         <div className="players">
           {players.length === 0 && <p className="muted">بانتظار انضمام اللاعبين…</p>}
           {players.map((p, i) => (
-            <span key={i} className="player-chip">{p.name}</span>
+            <span key={i} className="player-chip" style={p.team ? { background: teamColor(p.team) } : {}}>
+              {p.name}
+            </span>
           ))}
         </div>
         <button className="btn" disabled={players.length === 0} onClick={() => goQuestion(0)}>
@@ -221,8 +274,10 @@ export default function Host({ onExit }) {
             </>
           );
         })()}
-        <h3 style={{ margin: '20px 0 8px', color: 'var(--olive)' }}>🏆 الأوائل</h3>
-        <Leaderboard rows={toLeaderboard(playersObj, 5)} />
+        <h3 style={{ margin: '20px 0 8px', color: 'var(--olive)' }}>
+          {mode === 'team' ? '🏆 ترتيب الفِرَق' : '🏆 الأوائل'}
+        </h3>
+        <Leaderboard rows={mode === 'team' ? teamLeaderboard(playersObj) : toLeaderboard(playersObj, 5)} />
         <button className="btn" style={{ maxWidth: 360, margin: '0 auto' }} onClick={next}>
           {reveal.isLast ? 'عرض النتيجة النهائية' : 'السؤال التالي'}
         </button>
@@ -232,7 +287,7 @@ export default function Host({ onExit }) {
 
   // ===== المنصة النهائية =====
   if (stage === 'over') {
-    const all = toLeaderboard(playersObj, 50);
+    const all = mode === 'team' ? teamLeaderboard(playersObj) : toLeaderboard(playersObj, 50);
     const [p1, p2, p3] = all;
     return (
       <div className="card">
