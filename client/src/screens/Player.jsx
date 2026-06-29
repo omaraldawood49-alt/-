@@ -177,7 +177,13 @@ export default function Player({ onExit, initialPin = '' }) {
           {me.lastCorrect ? '✅ إجابة صحيحة!' : me.answered ? '❌ إجابة خاطئة' : '⏱️ لم تُجب'}
         </div>
         {me.lastCorrect && <p className="gain">+{me.lastGain} نقطة</p>}
-        {me.streak > 1 && <p className="streak">🔥 سلسلة صحيحة ×{me.streak}</p>}
+        {me.lastCorrect && me.streak >= 3 && (
+          <div className="fire-banner">
+            <div className="fire-emojis">🔥🔥🔥</div>
+            <div className="fire-text">سلسلة ×{me.streak}! أنت مشتعل 🚀</div>
+          </div>
+        )}
+        {me.lastCorrect && me.streak === 2 && <p className="streak">🔥 سلسلة ×2 — واصِل!</p>}
         <p style={{ marginTop: 14, fontWeight: 700 }}>مجموع نقاطك: {me.score}</p>
         <Explanation text={reveal.explanation} source={reveal.source} />
         <p className="muted" style={{ marginTop: 16 }}>بانتظار السؤال التالي…</p>

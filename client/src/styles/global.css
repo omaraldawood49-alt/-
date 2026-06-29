@@ -498,6 +498,7 @@ input.field:focus {
   border-radius: var(--radius);
   color: #fff;
   margin-bottom: 16px;
+  animation: firepop 0.45s ease;
 }
 .result-banner.ok {
   background: #1faa59;
@@ -523,11 +524,11 @@ input.field:focus {
 }
 .leaderboard li {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 12px;
   background: #fff;
   border-radius: 12px;
-  padding: 14px 18px;
+  padding: 12px 16px;
   margin-bottom: 10px;
   box-shadow: 0 4px 12px rgba(29, 33, 41, 0.08);
   font-weight: 700;
@@ -538,13 +539,83 @@ input.field:focus {
   color: #fff;
   width: 34px;
   height: 34px;
+  min-width: 34px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.leaderboard li .score {
+.leaderboard .lb-main {
+  flex: 1;
+  min-width: 0;
+}
+.leaderboard .lb-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.leaderboard .lb-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.leaderboard .lb-members {
+  color: #9aa0a6;
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+.leaderboard .score {
   color: var(--teal);
+}
+.leaderboard .lb-bar {
+  height: 10px;
+  background: #ece9da;
+  border-radius: 20px;
+  overflow: hidden;
+}
+.leaderboard .lb-fill {
+  height: 100%;
+  border-radius: 20px;
+  background: linear-gradient(90deg, var(--olive), var(--teal));
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.fire-badge {
+  margin-right: 6px;
+  color: var(--maroon);
+  font-weight: 800;
+  font-size: 0.9rem;
+  animation: flame 0.7s ease-in-out infinite alternate;
+  display: inline-block;
+}
+@keyframes flame {
+  from { transform: scale(1) rotate(-3deg); }
+  to { transform: scale(1.18) rotate(3deg); }
+}
+
+/* ===== شعلة السلسلة (للاعب) ===== */
+.fire-banner {
+  margin: 14px auto;
+  padding: 16px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #ff6a00, #c00000);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(192, 0, 0, 0.4);
+  animation: firepop 0.4s ease;
+}
+.fire-emojis {
+  font-size: 2.4rem;
+  animation: flame 0.5s ease-in-out infinite alternate;
+}
+.fire-text {
+  font-size: 1.25rem;
+  font-weight: 900;
+  margin-top: 4px;
+}
+@keyframes firepop {
+  0% { transform: scale(0.6); opacity: 0; }
+  70% { transform: scale(1.08); }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 /* ===== تلميح/شرح الإجابة ===== */

@@ -121,7 +121,7 @@ export async function revealAndScore(pin, question, index) {
     updates[`players/${pid}/lastCorrect`] = correct;
     updates[`players/${pid}/answered`] = !!a;
     updates[`players/${pid}/resultIndex`] = index;
-    roundResults.push({ name: p.name, correct, gain, timeMs });
+    roundResults.push({ name: p.name, correct, gain, timeMs, streak });
   }
   updates['reveal'] = {
     index,
@@ -174,7 +174,7 @@ export async function getRoundResults(pin, question, index) {
       const el = Math.max(0, Math.min(TIME_LIMIT, timeMs / 1000));
       gain = Math.round(POINTS_BASE * (0.5 + 0.5 * (1 - el / TIME_LIMIT)));
     }
-    rr.push({ name: p.name, correct, gain, timeMs });
+    rr.push({ name: p.name, correct, gain, timeMs, streak: p.streak || 0 });
   }
   rr.sort((x, y) => {
     if (x.correct !== y.correct) return x.correct ? -1 : 1;
@@ -248,7 +248,7 @@ export const watchAnswers = (pin, index, cb) =>
 // ترتيب اللاعبين من كائن players.
 export const toLeaderboard = (playersObj, limit = 50) =>
   Object.values(playersObj || {})
-    .map((p) => ({ name: p.name, score: p.score || 0 }))
+    .map((p) => ({ name: p.name, score: p.score || 0, streak: p.streak || 0 }))
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
 

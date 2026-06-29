@@ -357,7 +357,10 @@ export default function Host({ onExit }) {
                   {fastest.slice(0, 3).map((r, i) => (
                     <li key={i}>
                       <span className="medal">{['🥇', '🥈', '🥉'][i]}</span>
-                      <span className="sname">{r.name}</span>
+                      <span className="sname">
+                        {r.name}
+                        {r.streak >= 3 && <span className="fire-badge">🔥{r.streak}</span>}
+                      </span>
                       <span className="stime">{(r.timeMs / 1000).toFixed(1)} ث</span>
                       <span className="sgain">+{r.gain}</span>
                     </li>
