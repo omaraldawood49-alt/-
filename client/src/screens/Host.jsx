@@ -28,6 +28,7 @@ export default function Host({ onExit }) {
   const [q, setQ] = useState(null);
   const [answeredCount, setAnsweredCount] = useState(0);
   const [reveal, setReveal] = useState(null);
+  const [roundResults, setRoundResults] = useState([]);
 
   const questionsRef = useRef([]); // الأسئلة مع الإجابات (في متصفّح المضيف فقط)
   const totalRef = useRef(0);
@@ -84,7 +85,8 @@ export default function Host({ onExit }) {
     if (revealedRef.current === i) return;
     revealedRef.current = i;
     const question = questionsRef.current[i];
-    await revealAndScore(pin, question, i);
+    const res = await revealAndScore(pin, question, i);
+    setRoundResults(res.roundResults || []);
     setReveal({
       correctIndex: question.correctIndex,
       explanation: question.explanation,
@@ -197,7 +199,29 @@ export default function Host({ onExit }) {
         {reveal.explanation && (
           <p className="muted" style={{ marginTop: 14, fontSize: '1.05rem' }}>💡 {reveal.explanation}</p>
         )}
-        <h3 style={{ margin: '20px 0 8px', color: 'var(--olive)' }}>الترتيب</h3>
+        {(() => {
+          const fastest = roundResults.filter((r) => r.correct);
+          return (
+            <>
+              <h3 style={{ margin: '20px 0 8px', color: 'var(--olive)' }}>⚡ أسرع الإجابات الصحيحة</h3>
+              {fastest.length === 0 ? (
+                <p className="muted">لا توجد إجابة صحيحة هذه المرة.</p>
+              ) : (
+                <ol className="speed-list">
+                  {fastest.slice(0, 3).map((r, i) => (
+                    <li key={i}>
+                      <span className="medal">{['🥇', '🥈', '🥉'][i]}</span>
+                      <span className="sname">{r.name}</span>
+                      <span className="stime">{(r.timeMs / 1000).toFixed(1)} ث</span>
+                      <span className="sgain">+{r.gain}</span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </>
+          );
+        })()}
+        <h3 style={{ margin: '20px 0 8px', color: 'var(--olive)' }}>🏆 الأوائل</h3>
         <Leaderboard rows={toLeaderboard(playersObj, 5)} />
         <button className="btn" style={{ maxWidth: 360, margin: '0 auto' }} onClick={next}>
           {reveal.isLast ? 'عرض النتيجة النهائية' : 'السؤال التالي'}

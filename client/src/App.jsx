@@ -3,6 +3,7 @@ import Home from './screens/Home.jsx';
 import Host from './screens/Host.jsx';
 import Player from './screens/Player.jsx';
 import Admin from './screens/Admin.jsx';
+import Guide from './screens/Guide.jsx';
 import { isConfigured } from './firebase.js';
 
 // رمز الجلسة من رابط الباركود (?pin=123456) إن وُجد.
@@ -29,11 +30,17 @@ export default function App() {
   return (
     <div className="app">
       {mode === 'home' && (
-        <Home onHost={() => setMode('host')} onJoin={() => setMode('player')} onAdmin={() => setMode('admin')} />
+        <Home
+          onHost={() => setMode('host')}
+          onJoin={() => setMode('player')}
+          onAdmin={() => setMode('admin')}
+          onGuide={() => setMode('guide')}
+        />
       )}
       {mode === 'host' && <Host onExit={() => setMode('home')} />}
       {mode === 'player' && <Player onExit={() => setMode('home')} initialPin={initialPin} />}
       {mode === 'admin' && <Admin onExit={() => setMode('home')} />}
+      {mode === 'guide' && <Guide onExit={() => setMode('home')} />}
     </div>
   );
 }

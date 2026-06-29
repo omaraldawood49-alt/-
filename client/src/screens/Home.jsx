@@ -1,4 +1,4 @@
-export default function Home({ onHost, onJoin, onAdmin }) {
+export default function Home({ onHost, onJoin, onAdmin, onGuide }) {
   return (
     <div className="card">
       <h1 className="brand">
@@ -18,9 +18,10 @@ export default function Home({ onHost, onJoin, onAdmin }) {
         المعلّم ينشئ جلسة ويعرض رمز PIN، والطلاب ينضمّون من أجهزتهم ويتنافسون.
       </p>
 
-      <button className="btn ghost" style={{ marginTop: 18 }} onClick={onAdmin}>
-        ⚙️ إدارة الأسئلة
-      </button>
+      <div className="row" style={{ marginTop: 18 }}>
+        <button className="btn ghost" onClick={onGuide}>📖 دليل المعلّم</button>
+        <button className="btn ghost" onClick={onAdmin}>⚙️ إدارة الأسئلة</button>
+      </div>
     </div>
   );
 }

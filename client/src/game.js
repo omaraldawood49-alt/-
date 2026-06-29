@@ -73,13 +73,15 @@ export async function revealAndScore(pin, question, index) {
   const startAt = startSnap.val() || 0;
 
   const updates = {};
+  const roundResults = []; // نتائج هذا السؤال (لعرض الأسرع)
   for (const [pid, p] of Object.entries(players)) {
     const a = answers[pid];
     const correct = !!a && a.answerIndex === question.correctIndex;
     let gain = 0;
     let streak = p.streak || 0;
+    const timeMs = a ? Math.max(0, a.at - startAt) : null;
     if (correct) {
-      const elapsed = Math.max(0, Math.min(TIME_LIMIT, (a.at - startAt) / 1000));
+      const elapsed = Math.max(0, Math.min(TIME_LIMIT, timeMs / 1000));
       const ratio = 1 - elapsed / TIME_LIMIT;
       gain = Math.round(POINTS_BASE * (0.5 + 0.5 * ratio));
       streak += 1;
@@ -92,6 +94,7 @@ export async function revealAndScore(pin, question, index) {
     updates[`players/${pid}/lastCorrect`] = correct;
     updates[`players/${pid}/answered`] = !!a;
     updates[`players/${pid}/resultIndex`] = index;
+    roundResults.push({ name: p.name, correct, gain, timeMs });
   }
   updates['reveal'] = {
     index,
@@ -101,6 +104,14 @@ export async function revealAndScore(pin, question, index) {
   };
   updates['meta/state'] = 'results';
   await update(gref(pin), updates);
+
+  // الأسرع إجابةً صحيحة أولًا.
+  roundResults.sort((x, y) => {
+    if (x.correct !== y.correct) return x.correct ? -1 : 1;
+    if (x.correct) return (x.timeMs ?? Infinity) - (y.timeMs ?? Infinity);
+    return 0;
+  });
+  return { roundResults };
 }
 
 export async function endGame(pin) {

@@ -410,6 +410,38 @@ input.field:focus {
   color: var(--teal);
 }
 
+/* ===== أسرع الإجابات الصحيحة ===== */
+.speed-list {
+  list-style: none;
+  margin: 8px 0 4px;
+}
+.speed-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  border-right: 5px solid var(--gold);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  box-shadow: 0 4px 12px rgba(29, 33, 41, 0.08);
+  font-weight: 700;
+}
+.speed-list .medal {
+  font-size: 1.3rem;
+}
+.speed-list .sname {
+  flex: 1;
+}
+.speed-list .stime {
+  color: var(--teal);
+  font-size: 0.9rem;
+}
+.speed-list .sgain {
+  color: var(--olive);
+  font-weight: 800;
+}
+
 .podium {
   display: flex;
   align-items: flex-end;
@@ -475,6 +507,21 @@ input.field:focus {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* ===== دليل المعلّم ===== */
+.guide-h {
+  color: var(--teal);
+  margin: 16px 0 6px;
+  font-size: 1.1rem;
+}
+.guide-list {
+  padding-right: 22px;
+  line-height: 1.9;
+  color: var(--ink);
+}
+.guide-list li {
+  margin-bottom: 4px;
 }
 
 /* ===== لوحة الإدارة ===== */
