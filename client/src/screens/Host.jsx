@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { sectionSummaries } from '../data/index.js';
 import { getQuestionsOnce } from '../questions.js';
 import {
@@ -136,7 +137,17 @@ export default function Host({ onExit }) {
           <div className="label">رمز الدخول (PIN)</div>
           <div className="pin">{pin}</div>
         </div>
-        <p className="muted">يفتح الطلاب نفس الرابط، يختارون «الانضمام»، ويُدخلون الرمز.</p>
+        <div className="qr-box">
+          <QRCodeSVG
+            value={`${window.location.origin}/?pin=${pin}`}
+            size={188}
+            level="M"
+            bgColor="#ffffff"
+            fgColor="#1d2129"
+          />
+          <div className="qr-label">📷 امسح الباركود للانضمام مباشرةً</div>
+        </div>
+        <p className="muted">أو افتحوا الرابط، اختاروا «الانضمام»، وأدخلوا الرمز.</p>
         <div className="players">
           {players.length === 0 && <p className="muted">بانتظار انضمام اللاعبين…</p>}
           {players.map((p, i) => (

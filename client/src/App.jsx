@@ -5,8 +5,11 @@ import Player from './screens/Player.jsx';
 import Admin from './screens/Admin.jsx';
 import { isConfigured } from './firebase.js';
 
+// رمز الجلسة من رابط الباركود (?pin=123456) إن وُجد.
+const initialPin = new URLSearchParams(window.location.search).get('pin') || '';
+
 export default function App() {
-  const [mode, setMode] = useState('home'); // home | host | player | admin
+  const [mode, setMode] = useState(initialPin ? 'player' : 'home'); // home | host | player | admin
 
   if (!isConfigured) {
     return (
@@ -29,7 +32,7 @@ export default function App() {
         <Home onHost={() => setMode('host')} onJoin={() => setMode('player')} onAdmin={() => setMode('admin')} />
       )}
       {mode === 'host' && <Host onExit={() => setMode('home')} />}
-      {mode === 'player' && <Player onExit={() => setMode('home')} />}
+      {mode === 'player' && <Player onExit={() => setMode('home')} initialPin={initialPin} />}
       {mode === 'admin' && <Admin onExit={() => setMode('home')} />}
     </div>
   );

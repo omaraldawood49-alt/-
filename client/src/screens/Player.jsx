@@ -9,9 +9,9 @@ import {
 } from '../game.js';
 import AnswerButton from '../components/AnswerButton.jsx';
 
-export default function Player({ onExit }) {
+export default function Player({ onExit, initialPin = '' }) {
   const [joined, setJoined] = useState(false);
-  const [pin, setPin] = useState('');
+  const [pin, setPin] = useState(initialPin);
   const [name, setName] = useState('');
   const [playerId, setPlayerId] = useState(null);
   const [error, setError] = useState('');
