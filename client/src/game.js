@@ -20,14 +20,23 @@ const genPin = () => String(Math.floor(100000 + Math.random() * 900000));
 
 // ===================== المضيف =====================
 
-// الفِرَق المتاحة في النمط الجماعي.
-export const TEAMS = [
-  { id: 'green', name: 'الفريق الأخضر', color: '#73821B' },
-  { id: 'teal', name: 'الفريق الفيروزي', color: '#1C919E' },
+// لوحة ألوان الفِرَق (تكفي حتى 10 فِرَق).
+const TEAM_PALETTE = [
+  '#73821B', '#1C919E', '#C00000', '#C8A415', '#0070C0',
+  '#7B4FB5', '#C0701B', '#009999', '#5C6815', '#B5305F',
 ];
+const toArabicDigits = (n) => String(n).replace(/\d/g, (d) => '٠١٢٣٤٥٦٧٨٩'[d]);
+
+// توليد قائمة الفِرَق حسب العدد المختار (2–10).
+export const makeTeams = (count) =>
+  Array.from({ length: Math.max(2, Math.min(10, count || 2)) }, (_, i) => ({
+    id: 't' + (i + 1),
+    name: 'الفريق ' + toArabicDigits(i + 1),
+    color: TEAM_PALETTE[i % TEAM_PALETTE.length],
+  }));
 
 // إنشاء جلسة جديدة. تُمرَّر قائمة الأسئلة (مع الإجابات) لتبقى في متصفّح المضيف.
-// opts: { mode: 'solo'|'team', titleOverride }
+// opts: { mode: 'solo'|'team', teamCount, titleOverride }
 export async function createGame(sectionId, questions, opts = {}) {
   const meta = getSection(sectionId);
   if (!meta) throw new Error('القسم غير موجود');
@@ -46,6 +55,7 @@ export async function createGame(sectionId, questions, opts = {}) {
     total: list.length,
     state: 'lobby',
     mode: opts.mode || 'solo',
+    teamCount: opts.mode === 'team' ? Math.max(2, Math.min(10, opts.teamCount || 2)) : 0,
     createdAt: serverTimestamp(),
   });
   return { pin, sectionTitle: opts.titleOverride || meta.title, questions: list };
@@ -137,7 +147,7 @@ export async function joinGame(pin, name, team) {
   const meta = metaSnap.val();
   if (meta.state !== 'lobby') return { error: 'بدأت اللعبة بالفعل' };
   // في النمط الجماعي يجب اختيار الفريق أولًا.
-  if (meta.mode === 'team' && !team) return { needTeam: true };
+  if (meta.mode === 'team' && !team) return { needTeam: true, teamCount: meta.teamCount || 2 };
   const clean = String(name || '').trim().slice(0, 20) || 'لاعب';
   const playerRef = push(gref(pin, 'players'));
   // لا نزيل اللاعب عند الانقطاع؛ ليتمكّن من العودة ومواصلة اللعب بنقاطه.

@@ -19,12 +19,6 @@ export const sections = [
     description: 'أفعال وهيئات الصلاة كاملة والتنبيهات الشائعة',
     color: '#1C919E',
     questions: salah,
-    chapters: [
-      { n: 1, title: 'الافتتاح والقيام' },
-      { n: 2, title: 'الركوع والرفع منه' },
-      { n: 3, title: 'السجود وما بين السجدتين' },
-      { n: 4, title: 'التشهد والتسليم والتنبيهات' },
-    ],
   },
   {
     id: 'arkan-shurut-wajibat',
@@ -44,10 +38,12 @@ export const sections = [
 
 export const getSection = (id) => sections.find((s) => s.id === id);
 
-export const getChapters = (id) => getSection(id)?.chapters || null;
+// الفصول = الأقسام الأربعة بترتيبها المتّفق عليه.
+export const chapterList = () =>
+  sections.map((s, i) => ({ n: i + 1, sectionId: s.id, title: s.title }));
 
 // خلط بسيط (Fisher–Yates)
-const shuffle = (arr) => {
+export const shuffle = (arr) => {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -56,14 +52,10 @@ const shuffle = (arr) => {
   return a;
 };
 
-// اختبار الفصل: كل أسئلة الفصل الحالي + عيّنة من الفصول السابقة (تركيز على الحالي).
-export function buildChapterQuiz(sectionId, currentChapter) {
-  const all = getSection(sectionId)?.questions || [];
-  const current = all.filter((q) => (q.chapter || 1) === currentChapter);
-  const previous = all.filter((q) => (q.chapter || 1) < currentChapter);
-  const sampleCount = Math.min(previous.length, Math.max(2, Math.round(current.length * 0.5)));
-  const sampledPrev = shuffle(previous).slice(0, sampleCount);
-  return shuffle([...current, ...sampledPrev]);
+// مزج بتركيز على الفصل الحالي: كل أسئلة الحالي + عيّنة من الفصول السابقة.
+export function mixFocus(current, previous) {
+  const sampleCount = Math.min(previous.length, Math.max(3, Math.round(current.length * 0.5)));
+  return shuffle([...current, ...shuffle(previous).slice(0, sampleCount)]);
 }
 
 export const sectionSummaries = () =>

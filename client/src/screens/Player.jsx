@@ -8,7 +8,7 @@ import {
   watchCurrent,
   watchReveal,
   watchPlayer,
-  TEAMS,
+  makeTeams,
 } from '../game.js';
 import AnswerButton from '../components/AnswerButton.jsx';
 
@@ -31,6 +31,7 @@ export default function Player({ onExit, initialPin = '' }) {
   const [me, setMe] = useState(null);
   const [answeredIndex, setAnsweredIndex] = useState(-1);
   const [showTeams, setShowTeams] = useState(false);
+  const [teamCount, setTeamCount] = useState(2);
   const pinRef = useRef('');
 
   // استئناف الجلسة المحفوظة تلقائيًا عند فتح التطبيق (إن وُجدت وما زالت قائمة).
@@ -81,7 +82,11 @@ export default function Player({ onExit, initialPin = '' }) {
     if (!pin.trim() || !name.trim()) return setError('أدخل الرمز والاسم');
     try {
       const res = await joinGame(pin.trim(), name.trim(), team);
-      if (res.needTeam) return setShowTeams(true); // النمط جماعي: اختر الفريق
+      if (res.needTeam) { // النمط جماعي: اختر الفريق
+        setTeamCount(res.teamCount || 2);
+        setShowTeams(true);
+        return;
+      }
       if (res.error) return setError(res.error);
       pinRef.current = pin.trim();
       setPlayerId(res.playerId);
@@ -108,7 +113,7 @@ export default function Player({ onExit, initialPin = '' }) {
         <h2 style={{ color: 'var(--teal)' }}>اختر فريقك</h2>
         <p className="subtitle">مرحبًا {name}! انضمّ إلى أحد الفريقين</p>
         {error && <p className="error">{error}</p>}
-        {TEAMS.map((t) => (
+        {makeTeams(teamCount).map((t) => (
           <button key={t.id} className="btn" style={{ background: t.color, marginBottom: 12 }} onClick={() => join(t.name)}>
             {t.name}
           </button>

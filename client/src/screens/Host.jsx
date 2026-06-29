@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { sectionSummaries, getChapters, buildChapterQuiz } from '../data/index.js';
+import { chapterList, mixFocus } from '../data/index.js';
 import { getQuestionsOnce } from '../questions.js';
 import {
   createGame,
@@ -12,19 +12,19 @@ import {
   watchAnswers,
   toLeaderboard,
   teamLeaderboard,
-  TEAMS,
+  makeTeams,
   TIME_LIMIT,
 } from '../game.js';
 import Timer from '../components/Timer.jsx';
 import AnswerButton from '../components/AnswerButton.jsx';
 import Leaderboard from '../components/Leaderboard.jsx';
 
-const summaries = sectionSummaries();
+const CHAPTERS = chapterList();
 
 export default function Host({ onExit }) {
-  const [stage, setStage] = useState('pick'); // pick | chapters | lobby | question | results | over
+  const [stage, setStage] = useState('pick'); // pick | lobby | question | results | over
   const [mode, setMode] = useState('solo'); // solo | team
-  const [pendingSection, setPendingSection] = useState(null); // قسم به فصول بانتظار اختيار الفصل
+  const [teamCount, setTeamCount] = useState(2); // عدد الفِرَق (2–10)
   const [pin, setPin] = useState(null);
   const [sectionTitle, setSectionTitle] = useState('');
   const [playersObj, setPlayersObj] = useState({});
@@ -41,7 +41,7 @@ export default function Host({ onExit }) {
 
   const players = Object.values(playersObj);
   playersCountRef.current = players.length;
-  const teamColor = (name) => TEAMS.find((t) => t.name === name)?.color || 'var(--teal)';
+  const teamColor = (name) => makeTeams(teamCount).find((t) => t.name === name)?.color || 'var(--teal)';
 
   // اشتراك دائم بقائمة اللاعبين بعد إنشاء الجلسة.
   useEffect(() => {
@@ -61,36 +61,28 @@ export default function Host({ onExit }) {
     return off;
   }, [pin, stage, index]);
 
-  // إنشاء الجلسة وفتح اللوبي بقائمة أسئلة محدّدة.
-  const startGame = async (sectionId, questions, titleOverride) => {
+  // بدء اختبار الفصل n: تراكمي (الفصول 1..n) بتركيز على الفصل الحالي.
+  const pickChapter = async (n) => {
     try {
-      const { pin, sectionTitle } = await createGame(sectionId, questions, { mode, titleOverride });
-      questionsRef.current = questions;
-      totalRef.current = questions.length;
+      const upToN = CHAPTERS.slice(0, n);
+      const lists = await Promise.all(upToN.map((c) => getQuestionsOnce(c.sectionId)));
+      const current = lists[n - 1];
+      const previous = lists.slice(0, n - 1).flat();
+      const quiz = mixFocus(current, previous);
+      const title = `الفصل ${n}: ${CHAPTERS[n - 1].title}`;
+      const { pin, sectionTitle } = await createGame(CHAPTERS[n - 1].sectionId, quiz, {
+        mode,
+        teamCount,
+        titleOverride: title,
+      });
+      questionsRef.current = quiz;
+      totalRef.current = quiz.length;
       setPin(pin);
       setSectionTitle(sectionTitle);
       setStage('lobby');
     } catch (e) {
       alert(e.message || 'تعذّر إنشاء الجلسة. تأكّد من إعداد Firebase.');
     }
-  };
-
-  const pickSection = async (sectionId) => {
-    // إن كان للقسم فصول، اعرض اختيار الفصل أولًا.
-    if (getChapters(sectionId)) {
-      setPendingSection(sectionId);
-      setStage('chapters');
-      return;
-    }
-    const questions = await getQuestionsOnce(sectionId); // من Firebase أو الافتراضي
-    await startGame(sectionId, questions);
-  };
-
-  // بدء اختبار فصل (تراكمي بتركيز على الفصل الحالي).
-  const pickChapter = async (n) => {
-    const ch = (getChapters(pendingSection) || []).find((c) => c.n === n);
-    const quiz = buildChapterQuiz(pendingSection, n);
-    await startGame(pendingSection, quiz, `صفة الصلاة — فصل ${n}: ${ch?.title || ''}`);
   };
 
   const goQuestion = async (i) => {
@@ -137,45 +129,35 @@ export default function Host({ onExit }) {
   if (stage === 'pick') {
     return (
       <div className="card">
-        <h2 style={{ color: 'var(--olive)', marginBottom: 6 }}>اختر القسم</h2>
-        <p className="subtitle">حدّد نمط التنافس ثم القسم</p>
+        <h2 style={{ color: 'var(--olive)', marginBottom: 6 }}>اختر الفصل</h2>
+        <p className="subtitle">حدّد نمط التنافس ثم الفصل (المراجعة تراكمية بتركيز على الفصل الحالي)</p>
 
         <div className="mode-toggle">
           <button className={mode === 'solo' ? 'active' : ''} onClick={() => setMode('solo')}>👤 فردي</button>
           <button className={mode === 'team' ? 'active' : ''} onClick={() => setMode('team')}>👥 جماعي (فِرَق)</button>
         </div>
 
-        <div className="sections">
-          {summaries.map((s) => (
-            <button key={s.id} className="section-card" style={{ background: s.color }} onClick={() => pickSection(s.id)}>
-              <h3>{s.title}</h3>
-              <p>{s.description}</p>
-              <span className="count">{getChapters(s.id) ? `${getChapters(s.id).length} فصول` : `${s.count} سؤالًا`}</span>
+        {mode === 'team' && (
+          <div className="team-count">
+            <span>عدد الفِرَق:</span>
+            <button onClick={() => setTeamCount((c) => Math.max(2, c - 1))}>−</button>
+            <strong>{teamCount}</strong>
+            <button onClick={() => setTeamCount((c) => Math.min(10, c + 1))}>+</button>
+          </div>
+        )}
+
+        <div className="chapter-list">
+          {CHAPTERS.map((c) => (
+            <button key={c.n} className="chapter-card" onClick={() => pickChapter(c.n)}>
+              <span className="chapter-n">الفصل {c.n}</span>
+              <span className="chapter-title">{c.title}</span>
+              <span className="chapter-hint">
+                {c.n === 1 ? 'أسئلة الفصل الأول' : `الفصول 1–${c.n} (تركيز على الفصل ${c.n})`}
+              </span>
             </button>
           ))}
         </div>
         <button className="btn ghost" onClick={onExit}>رجوع</button>
-      </div>
-    );
-  }
-
-  // ===== اختيار الفصل (للأقسام ذات الفصول) =====
-  if (stage === 'chapters') {
-    const chapters = getChapters(pendingSection) || [];
-    return (
-      <div className="card">
-        <h2 style={{ color: 'var(--olive)', marginBottom: 6 }}>اختر الفصل</h2>
-        <p className="subtitle">بعد كل فصل: اختبار تراكمي بتركيز على الفصل الحالي</p>
-        <div className="chapter-list">
-          {chapters.map((c) => (
-            <button key={c.n} className="chapter-card" onClick={() => pickChapter(c.n)}>
-              <span className="chapter-n">فصل {c.n}</span>
-              <span className="chapter-title">{c.title}</span>
-              <span className="chapter-hint">{c.n === 1 ? 'أسئلة الفصل الأول' : `الفصول 1–${c.n} (تركيز على ${c.n})`}</span>
-            </button>
-          ))}
-        </div>
-        <button className="btn ghost" onClick={() => setStage('pick')}>رجوع</button>
       </div>
     );
   }
