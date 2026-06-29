@@ -156,6 +156,33 @@ input.field:focus {
   flex: 1;
 }
 
+/* ===== المقدمة التشويقية ===== */
+.intro-card {
+  text-align: center;
+}
+.intro-teaser {
+  font-size: 2rem;
+  font-weight: 900;
+  color: var(--olive);
+  margin: 14px 0 18px;
+}
+.intro-count {
+  font-size: 5rem;
+  font-weight: 900;
+  color: var(--teal);
+  line-height: 1;
+  animation: pop 0.4s ease;
+}
+.intro-pulse {
+  font-size: 3rem;
+  color: var(--teal);
+  animation: pulse 0.9s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
 /* ===== مبدّل النمط (فردي/جماعي) ===== */
 .mode-toggle {
   display: flex;

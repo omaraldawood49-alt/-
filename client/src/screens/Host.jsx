@@ -5,6 +5,7 @@ import { getQuestionsOnce } from '../questions.js';
 import {
   createGame,
   showQuestion,
+  startAnswering,
   revealAndScore,
   endGame,
   deleteGame,
@@ -21,8 +22,21 @@ import Timer from '../components/Timer.jsx';
 import AnswerButton from '../components/AnswerButton.jsx';
 import Leaderboard from '../components/Leaderboard.jsx';
 import Explanation from '../components/Explanation.jsx';
+import QuestionIntro from '../components/QuestionIntro.jsx';
 
 const CHAPTERS = chapterList();
+
+// عبارات تشويقية قبل كل سؤال.
+const TEASERS = [
+  'استعدّوا… 🔥',
+  'ركّزوا جيدًا!',
+  'من سيكون الأسرع؟ ⚡',
+  'سؤالٌ جديد قادم…',
+  'هيّا بنا! 💪',
+  'بسم الله، انطلقوا!',
+  'شدّوا الهمّة! 🌟',
+];
+const randomTeaser = () => TEASERS[Math.floor(Math.random() * TEASERS.length)];
 
 // حفظ جلسة المضيف محليًا لاستئنافها بعد تحديث الصفحة (تتضمّن الأسئلة مع الإجابات — على جهاز المضيف فقط).
 const HOST_KEY = 'aqim_host';
@@ -43,6 +57,7 @@ export default function Host({ onExit }) {
   const [reveal, setReveal] = useState(null);
   const [roundResults, setRoundResults] = useState([]);
   const [questionSeconds, setQuestionSeconds] = useState(TIME_LIMIT);
+  const [introText, setIntroText] = useState('');
 
   const questionsRef = useRef([]); // الأسئلة مع الإجابات (في متصفّح المضيف فقط)
   const totalRef = useRef(0);
@@ -71,9 +86,16 @@ export default function Host({ onExit }) {
         revealedRef.current = -1;
         setIndex(i);
         setQ({ ...hs.quiz[i], index: i, total: hs.quiz.length });
-        const remain = TIME_LIMIT - (Date.now() - (gs.current.startAt || Date.now())) / 1000;
-        setQuestionSeconds(Math.max(1, Math.round(remain)));
-        setStage('question');
+        if (gs.current.startAt) {
+          const remain = TIME_LIMIT - (Date.now() - gs.current.startAt) / 1000;
+          setQuestionSeconds(Math.max(1, Math.round(remain)));
+          setStage('question');
+        } else {
+          // كان في المقدمة عند التحديث؛ ابدأ الإجابة مباشرة.
+          await startAnswering(hs.pin);
+          setQuestionSeconds(TIME_LIMIT);
+          setStage('question');
+        }
       } else if (st === 'results' && gs.current) {
         const i = gs.current.index;
         revealedRef.current = i;
@@ -146,9 +168,17 @@ export default function Host({ onExit }) {
     setAnsweredCount(0);
     setIndex(i);
     setQ({ ...question, index: i, total: totalRef.current });
+    const intro = randomTeaser();
+    setIntroText(intro);
+    setStage('intro'); // مقدمة تشويقية ثم بدء الإجابة
+    await showQuestion(pin, question, i, totalRef.current, intro);
+  };
+
+  // بعد انتهاء المقدمة: بدء وقت الإجابة وعرض السؤال.
+  const beginAnswering = async () => {
+    await startAnswering(pin);
     setQuestionSeconds(TIME_LIMIT);
     setStage('question');
-    await showQuestion(pin, question, i, totalRef.current);
   };
 
   const reveal_ = async (i) => {
@@ -209,7 +239,7 @@ export default function Host({ onExit }) {
             <span>عدد الفِرَق:</span>
             <button onClick={() => setTeamCount((c) => Math.max(2, c - 1))}>−</button>
             <strong>{teamCount}</strong>
-            <button onClick={() => setTeamCount((c) => Math.min(10, c + 1))}>+</button>
+            <button onClick={() => setTeamCount((c) => Math.min(8, c + 1))}>+</button>
           </div>
         )}
 
@@ -264,6 +294,11 @@ export default function Host({ onExit }) {
         <button className="btn ghost" style={{ marginTop: 10 }} onClick={quit}>إنهاء الجلسة</button>
       </div>
     );
+  }
+
+  // ===== المقدمة التشويقية =====
+  if (stage === 'intro' && q) {
+    return <QuestionIntro text={introText} index={q.index} total={q.total} onDone={beginAnswering} />;
   }
 
   // ===== عرض السؤال =====

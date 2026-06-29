@@ -186,6 +186,19 @@ export default function Player({ onExit, initialPin = '' }) {
     );
   }
 
+  // ===== المقدمة التشويقية (قبل بدء الإجابة) =====
+  if (state === 'question' && current && current.index !== answeredIndex && !current.startAt) {
+    return (
+      <div className="card intro-card">
+        <p className="muted">السؤال {current.index + 1} / {current.total}</p>
+        <h2 className="intro-teaser">{current.intro || 'استعدّوا!'}</h2>
+        <div className="intro-pulse">●</div>
+        <p className="muted">استعدّ…</p>
+        <LeaveBtn />
+      </div>
+    );
+  }
+
   // ===== السؤال =====
   if (state === 'question' && current && current.index !== answeredIndex) {
     return (

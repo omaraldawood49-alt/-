@@ -25,15 +25,16 @@ const TEAM_PALETTE = [
   '#73821B', '#1C919E', '#C00000', '#C8A415', '#0070C0',
   '#7B4FB5', '#C0701B', '#009999', '#5C6815', '#B5305F',
 ];
-// أسماء الفِرَق ذات الطابع العلمي.
+// أسماء الفِرَق ذات الطابع العلمي (حتى 8 فِرَق).
 const TEAM_NAMES = [
-  'الفقهاء', 'العلماء', 'الحفّاظ', 'طلبة العلم', 'المجتهدون',
-  'المحدّثون', 'القرّاء', 'النبهاء', 'المتقنون', 'المبرّزون',
+  'الفقهاء', 'العلماء', 'الحفّاظ', 'طلبة العلم',
+  'المفسّرون', 'المحدّثون', 'القرّاء', 'الأصوليون',
 ];
+const MAX_TEAMS = 8;
 
-// توليد قائمة الفِرَق حسب العدد المختار (2–10).
+// توليد قائمة الفِرَق حسب العدد المختار (2–8).
 export const makeTeams = (count) =>
-  Array.from({ length: Math.max(2, Math.min(10, count || 2)) }, (_, i) => ({
+  Array.from({ length: Math.max(2, Math.min(MAX_TEAMS, count || 2)) }, (_, i) => ({
     id: 't' + (i + 1),
     name: TEAM_NAMES[i] || 'الفريق ' + (i + 1),
     color: TEAM_PALETTE[i % TEAM_PALETTE.length],
@@ -59,14 +60,14 @@ export async function createGame(sectionId, questions, opts = {}) {
     total: list.length,
     state: 'lobby',
     mode: opts.mode || 'solo',
-    teamCount: opts.mode === 'team' ? Math.max(2, Math.min(10, opts.teamCount || 2)) : 0,
+    teamCount: opts.mode === 'team' ? Math.max(2, Math.min(8, opts.teamCount || 2)) : 0,
     createdAt: serverTimestamp(),
   });
   return { pin, sectionTitle: opts.titleOverride || meta.title, questions: list };
 }
 
-// عرض سؤال (بدون الإجابة الصحيحة) ومسح كشف السؤال السابق.
-export async function showQuestion(pin, question, index, total) {
+// عرض المقدمة التشويقية للسؤال (بدون startAt بعد — لا يمكن الإجابة حتى بدء العدّ).
+export async function showQuestion(pin, question, index, total, intro) {
   await update(gref(pin), {
     current: {
       index,
@@ -75,11 +76,16 @@ export async function showQuestion(pin, question, index, total) {
       question: question.question,
       options: question.options,
       timeLimit: TIME_LIMIT,
-      startAt: serverTimestamp(),
+      intro: intro || '',
     },
     reveal: null,
     'meta/state': 'question',
   });
+}
+
+// بدء وقت الإجابة بعد المقدمة (يجعل السؤال قابلًا للإجابة ويبدأ المؤقّت).
+export async function startAnswering(pin) {
+  await update(gref(pin, 'current'), { startAt: serverTimestamp() });
 }
 
 // التصحيح وحساب النقاط (المضيف هو المرجع)، وكتابة الكشف وتحديث نقاط اللاعبين دفعة واحدة.
@@ -246,14 +252,16 @@ export const toLeaderboard = (playersObj, limit = 50) =>
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
 
-// ترتيب الفِرَق (مجموع نقاط أعضاء كل فريق).
+// ترتيب الفِرَق بمتوسط نقاط العضو (مجموع النقاط ÷ عدد الأعضاء) لعدالة الفِرَق المختلفة العدد.
 export const teamLeaderboard = (playersObj) => {
-  const totals = {};
+  const agg = {};
   for (const p of Object.values(playersObj || {})) {
     const t = p.team || 'بلا فريق';
-    totals[t] = (totals[t] || 0) + (p.score || 0);
+    if (!agg[t]) agg[t] = { sum: 0, n: 0 };
+    agg[t].sum += p.score || 0;
+    agg[t].n += 1;
   }
-  return Object.entries(totals)
-    .map(([name, score]) => ({ name, score }))
+  return Object.entries(agg)
+    .map(([name, { sum, n }]) => ({ name, score: Math.round(sum / Math.max(1, n)), members: n }))
     .sort((a, b) => b.score - a.score);
 };
