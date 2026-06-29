@@ -18,6 +18,7 @@ import {
 import Timer from '../components/Timer.jsx';
 import AnswerButton from '../components/AnswerButton.jsx';
 import Leaderboard from '../components/Leaderboard.jsx';
+import Explanation from '../components/Explanation.jsx';
 
 const CHAPTERS = chapterList();
 
@@ -105,6 +106,7 @@ export default function Host({ onExit }) {
     setReveal({
       correctIndex: question.correctIndex,
       explanation: question.explanation,
+      source: question.source,
       isLast: i >= totalRef.current - 1,
     });
     setStage('results');
@@ -231,9 +233,7 @@ export default function Host({ onExit }) {
             <AnswerButton key={i} index={i} text={opt} disabled state={i === reveal.correctIndex ? 'correct' : 'dim'} />
           ))}
         </div>
-        {reveal.explanation && (
-          <p className="muted" style={{ marginTop: 14, fontSize: '1.05rem' }}>💡 {reveal.explanation}</p>
-        )}
+        <Explanation text={reveal.explanation} source={reveal.source} />
         {(() => {
           const fastest = roundResults.filter((r) => r.correct);
           return (

@@ -504,6 +504,95 @@ input.field:focus {
   color: var(--teal);
 }
 
+/* ===== تلميح/شرح الإجابة ===== */
+.explain-box {
+  display: block;
+  width: 100%;
+  text-align: right;
+  background: #fdf6e3;
+  border: 2px solid var(--gold);
+  border-right-width: 7px;
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin: 16px 0;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.08s, box-shadow 0.2s;
+}
+.explain-box:hover {
+  box-shadow: 0 6px 18px rgba(200, 164, 21, 0.25);
+}
+.explain-box:active {
+  transform: scale(0.99);
+}
+.explain-icon {
+  font-size: 1.4rem;
+  margin-left: 6px;
+}
+.explain-text {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.7;
+}
+.explain-hint {
+  display: block;
+  margin-top: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+.explain-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(29, 33, 41, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 50;
+  animation: fade 0.15s ease;
+}
+@keyframes fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.explain-modal {
+  background: #fffdf5;
+  border-radius: 20px;
+  padding: 32px 28px;
+  max-width: 760px;
+  width: 100%;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+.explain-icon-lg {
+  font-size: 3rem;
+  margin-bottom: 10px;
+}
+.explain-modal-text {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.8;
+  color: var(--ink);
+}
+.explain-source {
+  margin-top: 16px;
+  color: var(--teal);
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+.explain-modal .btn {
+  margin-top: 22px;
+  max-width: 220px;
+}
+@media (max-width: 600px) {
+  .explain-modal-text {
+    font-size: 1.5rem;
+  }
+}
+
 /* ===== أسرع الإجابات الصحيحة ===== */
 .speed-list {
   list-style: none;

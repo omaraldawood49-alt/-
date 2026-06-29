@@ -11,6 +11,7 @@ import {
   makeTeams,
 } from '../game.js';
 import AnswerButton from '../components/AnswerButton.jsx';
+import Explanation from '../components/Explanation.jsx';
 
 const SESSION_KEY = 'aqim_session';
 const saveSession = (s) => localStorage.setItem(SESSION_KEY, JSON.stringify(s));
@@ -165,7 +166,7 @@ export default function Player({ onExit, initialPin = '' }) {
         {me.lastCorrect && <p className="gain">+{me.lastGain} نقطة</p>}
         {me.streak > 1 && <p className="streak">🔥 سلسلة صحيحة ×{me.streak}</p>}
         <p style={{ marginTop: 14, fontWeight: 700 }}>مجموع نقاطك: {me.score}</p>
-        {reveal.explanation && <p className="muted" style={{ marginTop: 12 }}>💡 {reveal.explanation}</p>}
+        <Explanation text={reveal.explanation} source={reveal.source} />
         <p className="muted" style={{ marginTop: 16 }}>بانتظار السؤال التالي…</p>
       </div>
     );
