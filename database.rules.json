@@ -6,6 +6,10 @@
         ".write": true,
         ".indexOn": ["score"]
       }
+    },
+    "questions": {
+      ".read": true,
+      ".write": true
     }
   }
 }
