@@ -25,13 +25,17 @@ const TEAM_PALETTE = [
   '#73821B', '#1C919E', '#C00000', '#C8A415', '#0070C0',
   '#7B4FB5', '#C0701B', '#009999', '#5C6815', '#B5305F',
 ];
-const toArabicDigits = (n) => String(n).replace(/\d/g, (d) => '٠١٢٣٤٥٦٧٨٩'[d]);
+// أسماء الفِرَق ذات الطابع العلمي.
+const TEAM_NAMES = [
+  'الفقهاء', 'العلماء', 'الحفّاظ', 'طلبة العلم', 'المجتهدون',
+  'المحدّثون', 'القرّاء', 'النبهاء', 'المتقنون', 'المبرّزون',
+];
 
 // توليد قائمة الفِرَق حسب العدد المختار (2–10).
 export const makeTeams = (count) =>
   Array.from({ length: Math.max(2, Math.min(10, count || 2)) }, (_, i) => ({
     id: 't' + (i + 1),
-    name: 'الفريق ' + toArabicDigits(i + 1),
+    name: TEAM_NAMES[i] || 'الفريق ' + (i + 1),
     color: TEAM_PALETTE[i % TEAM_PALETTE.length],
   }));
 
