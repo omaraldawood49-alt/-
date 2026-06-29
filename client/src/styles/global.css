@@ -156,6 +156,22 @@ input.field:focus {
   flex: 1;
 }
 
+/* ===== أزرار تحكّم المضيف ===== */
+.host-controls {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin: 14px auto 0;
+  max-width: 560px;
+}
+.host-controls .btn {
+  width: auto;
+  flex: 1;
+  max-width: 260px;
+  font-size: 1rem;
+  padding: 12px;
+}
+
 /* ===== المقدمة التشويقية ===== */
 .intro-card {
   text-align: center;

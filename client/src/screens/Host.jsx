@@ -206,6 +206,13 @@ export default function Host({ onExit }) {
     }
   };
 
+  // إنهاء اللعبة فورًا وعرض النتائج النهائية.
+  const endNow = async () => {
+    if (!confirm('إنهاء اللعبة الآن وعرض النتائج النهائية؟')) return;
+    if (pin) await endGame(pin).catch(() => {});
+    setStage('over');
+  };
+
   const quit = async () => {
     if (pin) await deleteGame(pin).catch(() => {});
     clearHost();
@@ -319,6 +326,10 @@ export default function Host({ onExit }) {
         <button className="btn ghost" style={{ maxWidth: 300, margin: '16px auto 0' }} onClick={() => reveal_(index)}>
           كشف الإجابة الآن
         </button>
+        <div className="host-controls">
+          <button className="btn ghost" onClick={endNow}>🏁 إنهاء اللعبة</button>
+          <button className="btn ghost" onClick={quit}>🚪 خروج</button>
+        </div>
       </div>
     );
   }
@@ -363,6 +374,10 @@ export default function Host({ onExit }) {
         <button className="btn" style={{ maxWidth: 360, margin: '0 auto' }} onClick={next}>
           {reveal.isLast ? 'عرض النتيجة النهائية' : 'السؤال التالي'}
         </button>
+        <div className="host-controls">
+          {!reveal.isLast && <button className="btn ghost" onClick={endNow}>🏁 إنهاء اللعبة وعرض النتائج</button>}
+          <button className="btn ghost" onClick={quit}>🚪 خروج</button>
+        </div>
       </div>
     );
   }
