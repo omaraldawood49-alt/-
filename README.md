@@ -31,18 +31,33 @@ npm run dev             # تشغيل الخادم (3001) والواجهة (5173)
 
 > للاستخدام داخل الصف على الشبكة المحلية، شغّل الواجهة بعنوان جهاز المعلّم على الشبكة، أو ابنِ الواجهة وقدّمها من الخادم (انظر النشر).
 
-## النشر
-النمط الجماعي يحتاج خادمًا دائم التشغيل يدعم WebSocket (لا يكفي الاستضافة الثابتة مثل GitHub Pages).
+## النشر — الحصول على رابط تفاعلي مباشر
+النمط الجماعي يحتاج خادمًا دائم التشغيل يدعم WebSocket (لا يكفي الاستضافة الثابتة مثل GitHub Pages). المشروع مهيّأ للنشر بنقرة واحدة.
 
+### الخيار الأول: Render (مجاني، موصى به)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/omaraldawood49-alt/-)
+
+1. اضغط الزر أعلاه، وسجّل الدخول إلى Render بحساب GitHub (مجاني، بلا بطاقة).
+2. سيقرأ Render ملف `render.yaml` تلقائيًا (الفرع، أوامر البناء والتشغيل، وفحص الصحة) — اضغط **Apply**.
+3. انتظر اكتمال البناء (~2–3 دقائق)، وستحصل على رابط حيّ مثل: `https://aqim-salatak.onrender.com`.
+
+> ملاحظة: الخطة المجانية في Render تُنيم الخدمة بعد فترة خمول، فيتأخّر أول طلب ~30 ثانية ثم تعمل بسرعة.
+
+### الخيار الثاني: أي منصّة حاويات (Railway / Fly.io / Cloud Run)
+يوجد `Dockerfile` جاهز:
 ```bash
-npm run build           # يبني الواجهة في client/dist
-npm start               # الخادم يقدّم الواجهة المبنية على المنفذ نفسه (PORT)
+docker build -t aqim-salatak .
+docker run -p 3001:3001 aqim-salatak     # ثم افتح http://localhost:3001
 ```
+على Railway: «Deploy from GitHub repo» → يكتشف الـ Dockerfile تلقائيًا. تأكّد من اختيار الفرع `claude/islamic-curriculum-gamification-2blx3m`.
 
-انشر مجلد المشروع على منصّة تدعم WebSocket (Render / Railway / Fly.io) مع:
-- أمر التثبيت: `npm run install:all`
-- أمر البناء: `npm run build`
-- أمر التشغيل: `npm start`
+### النشر اليدوي (أي خادم Node)
+```bash
+npm run install:all     # تثبيت التبعيات
+npm run build           # بناء الواجهة في client/dist
+npm start               # الخادم يقدّم الواجهة على المنفذ PORT (افتراضيًا 3001)
+```
 
 ## تحرير الأسئلة
 كل قسم ملف JSON في `server/data/`. شكل السؤال:
