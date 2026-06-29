@@ -3,6 +3,7 @@ import {
   joinGame,
   resumePlayer,
   hasAnswered,
+  leaveGame,
   submitAnswer,
   watchMeta,
   watchCurrent,
@@ -107,6 +108,18 @@ export default function Player({ onExit, initialPin = '' }) {
 
   const exit = () => { clearSession(); onExit(); };
 
+  // خروج مقصود من الغرفة (يُزيل اللاعب من الجلسة).
+  const leaveRoom = async () => {
+    if (!confirm('هل تريد الخروج من الغرفة؟')) return;
+    await leaveGame(pinRef.current, playerId);
+    clearSession();
+    onExit();
+  };
+
+  const LeaveBtn = () => (
+    <button className="leave-room" onClick={leaveRoom}>🚪 خروج من الغرفة</button>
+  );
+
   // ===== اختيار الفريق (النمط الجماعي) =====
   if (!joined && showTeams) {
     return (
@@ -168,6 +181,7 @@ export default function Player({ onExit, initialPin = '' }) {
         <p style={{ marginTop: 14, fontWeight: 700 }}>مجموع نقاطك: {me.score}</p>
         <Explanation text={reveal.explanation} source={reveal.source} />
         <p className="muted" style={{ marginTop: 16 }}>بانتظار السؤال التالي…</p>
+        <LeaveBtn />
       </div>
     );
   }
@@ -182,6 +196,7 @@ export default function Player({ onExit, initialPin = '' }) {
             <AnswerButton key={i} index={i} text={opt} onClick={() => answer(i)} />
           ))}
         </div>
+        <div style={{ textAlign: 'center' }}><LeaveBtn /></div>
       </div>
     );
   }
@@ -193,6 +208,7 @@ export default function Player({ onExit, initialPin = '' }) {
         <h2 style={{ color: 'var(--teal)' }}>تم استلام إجابتك</h2>
         <div className="spinner" />
         <p className="muted">بانتظار بقية اللاعبين…</p>
+        <LeaveBtn />
       </div>
     );
   }
@@ -205,6 +221,7 @@ export default function Player({ onExit, initialPin = '' }) {
       <p className="big-wait">{sectionTitle}</p>
       <div className="spinner" />
       <p className="muted">انضممتَ بنجاح! بانتظار أن يبدأ المعلّم اللعبة…</p>
+      <LeaveBtn />
     </div>
   );
 }

@@ -216,6 +216,11 @@ export async function hasAnswered(pin, index, playerId) {
   return s.exists();
 }
 
+// خروج مقصود من الغرفة: إزالة اللاعب من الجلسة.
+export async function leaveGame(pin, playerId) {
+  if (pin && playerId) await remove(gref(pin, `players/${playerId}`)).catch(() => {});
+}
+
 export async function submitAnswer(pin, index, playerId, answerIndex) {
   await set(gref(pin, `answers/${index}/${playerId}`), {
     answerIndex,

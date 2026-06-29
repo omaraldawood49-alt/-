@@ -666,6 +666,18 @@ input.field:focus {
   color: #7a8089;
   font-size: 0.95rem;
 }
+.leave-room {
+  display: inline-block;
+  margin-top: 18px;
+  background: transparent;
+  border: none;
+  color: var(--maroon);
+  font-weight: 700;
+  font-family: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
 .error {
   color: var(--maroon);
   font-weight: 700;
