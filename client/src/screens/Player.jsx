@@ -184,7 +184,7 @@ export default function Player({ onExit, initialPin = '' }) {
           </div>
         )}
         {me.lastCorrect && me.streak === 2 && <p className="streak">🔥 سلسلة ×2 — واصِل!</p>}
-        <p style={{ marginTop: 14, fontWeight: 700 }}>مجموع نقاطك: {me.score}</p>
+        {!meta?.hideStandings && <p style={{ marginTop: 14, fontWeight: 700 }}>مجموع نقاطك: {me.score}</p>}
         <Explanation text={reveal.explanation} source={reveal.source} />
         <p className="muted" style={{ marginTop: 16 }}>بانتظار السؤال التالي…</p>
         <LeaveBtn />

@@ -13,6 +13,7 @@ import {
   watchAnswers,
   toLeaderboard,
   teamLeaderboard,
+  topByCorrect,
   makeTeams,
   getGameState,
   getRoundResults,
@@ -23,6 +24,7 @@ import AnswerButton from '../components/AnswerButton.jsx';
 import Leaderboard from '../components/Leaderboard.jsx';
 import Explanation from '../components/Explanation.jsx';
 import QuestionIntro from '../components/QuestionIntro.jsx';
+import PodiumReveal from '../components/PodiumReveal.jsx';
 
 const CHAPTERS = chapterList();
 
@@ -58,6 +60,8 @@ export default function Host({ onExit }) {
   const [roundResults, setRoundResults] = useState([]);
   const [questionSeconds, setQuestionSeconds] = useState(TIME_LIMIT);
   const [introText, setIntroText] = useState('');
+  const [hideStandings, setHideStandings] = useState(false);
+  const [overPage, setOverPage] = useState('teams'); // teams | individuals (النمط الجماعي)
 
   const questionsRef = useRef([]); // الأسئلة مع الإجابات (في متصفّح المضيف فقط)
   const totalRef = useRef(0);
@@ -78,6 +82,7 @@ export default function Host({ onExit }) {
       totalRef.current = hs.quiz.length;
       setMode(hs.mode || 'solo');
       setTeamCount(hs.teamCount || 2);
+      setHideStandings(!!hs.hideStandings);
       setPin(hs.pin);
       setSectionTitle(gs.meta.sectionTitle);
       const st = gs.meta.state;
@@ -148,11 +153,12 @@ export default function Host({ onExit }) {
       const { pin, sectionTitle } = await createGame(CHAPTERS[n - 1].sectionId, quiz, {
         mode,
         teamCount,
+        hideStandings,
         titleOverride: title,
       });
       questionsRef.current = quiz;
       totalRef.current = quiz.length;
-      saveHost({ pin, quiz, mode, teamCount }); // لاستئناف المضيف بعد التحديث
+      saveHost({ pin, quiz, mode, teamCount, hideStandings }); // لاستئناف المضيف بعد التحديث
       setPin(pin);
       setSectionTitle(sectionTitle);
       setStage('lobby');
@@ -249,6 +255,11 @@ export default function Host({ onExit }) {
             <button onClick={() => setTeamCount((c) => Math.min(8, c + 1))}>+</button>
           </div>
         )}
+
+        <label className="hide-toggle">
+          <input type="checkbox" checked={hideStandings} onChange={(e) => setHideStandings(e.target.checked)} />
+          <span>🙈 إخفاء الترتيب أثناء اللعب (يظهر في النهاية فقط)</span>
+        </label>
 
         <div className="chapter-list">
           {CHAPTERS.map((c) => (
@@ -362,7 +373,7 @@ export default function Host({ onExit }) {
                         {r.streak >= 3 && <span className="fire-badge">🔥{r.streak}</span>}
                       </span>
                       <span className="stime">{(r.timeMs / 1000).toFixed(1)} ث</span>
-                      <span className="sgain">+{r.gain}</span>
+                      {!hideStandings && <span className="sgain">+{r.gain}</span>}
                     </li>
                   ))}
                 </ol>
@@ -370,10 +381,16 @@ export default function Host({ onExit }) {
             </>
           );
         })()}
-        <h3 style={{ margin: '20px 0 8px', color: 'var(--olive)' }}>
-          {mode === 'team' ? '🏆 ترتيب الفِرَق' : '🏆 الأوائل'}
-        </h3>
-        <Leaderboard rows={mode === 'team' ? teamLeaderboard(playersObj) : toLeaderboard(playersObj, 5)} />
+        {hideStandings ? (
+          <p className="muted" style={{ marginTop: 18 }}>🙈 الترتيب مخفيٌّ حتى نهاية اللعبة.</p>
+        ) : (
+          <>
+            <h3 style={{ margin: '20px 0 8px', color: 'var(--olive)' }}>
+              {mode === 'team' ? '🏆 ترتيب الفِرَق' : '🏆 الأوائل'}
+            </h3>
+            <Leaderboard rows={mode === 'team' ? teamLeaderboard(playersObj) : toLeaderboard(playersObj, 5)} />
+          </>
+        )}
         <button className="btn" style={{ maxWidth: 360, margin: '0 auto' }} onClick={next}>
           {reveal.isLast ? 'عرض النتيجة النهائية' : 'السؤال التالي'}
         </button>
@@ -385,20 +402,25 @@ export default function Host({ onExit }) {
     );
   }
 
-  // ===== المنصة النهائية =====
+  // ===== النتائج النهائية =====
   if (stage === 'over') {
-    const all = mode === 'team' ? teamLeaderboard(playersObj) : toLeaderboard(playersObj, 50);
-    const [p1, p2, p3] = all;
+    // النمط الجماعي: صفحة الفِرَق أولًا، ثم «التالي» للمتميّزين من الأفراد.
+    if (mode === 'team' && overPage === 'teams') {
+      return (
+        <div className="card">
+          <PodiumReveal title="🏆 ترتيب الفِرَق النهائي" rows={teamLeaderboard(playersObj)} />
+          <button className="btn" onClick={() => setOverPage('individuals')}>التالي: المتميّزون من الأفراد ←</button>
+          <button className="btn ghost" style={{ marginTop: 10 }} onClick={quit}>جلسة جديدة</button>
+        </div>
+      );
+    }
+    // صفحة الأفراد: الأكثر نقاطًا (بأنميشن) + الأكثر إجابات صحيحة.
     return (
       <div className="card">
-        <h2 style={{ color: 'var(--olive)' }}>🏆 النتيجة النهائية</h2>
-        <div className="podium">
-          {p2 && <div className="place p2"><div className="medal">🥈</div><div className="pname">{p2.name}</div><div>{p2.score}</div></div>}
-          {p1 && <div className="place p1"><div className="medal">🥇</div><div className="pname">{p1.name}</div><div>{p1.score}</div></div>}
-          {p3 && <div className="place p3"><div className="medal">🥉</div><div className="pname">{p3.name}</div><div>{p3.score}</div></div>}
-        </div>
-        <Leaderboard rows={all} />
-        <button className="btn" onClick={quit}>جلسة جديدة</button>
+        <PodiumReveal title={mode === 'team' ? '🥇 المتميّزون من الأفراد' : '🏆 النتيجة النهائية'} rows={toLeaderboard(playersObj, 8)} />
+        <h3 style={{ margin: '22px 0 8px', color: 'var(--olive)' }}>✅ الأكثر إجابات صحيحة</h3>
+        <Leaderboard rows={topByCorrect(playersObj, 5)} />
+        <button className="btn" style={{ marginTop: 14 }} onClick={quit}>جلسة جديدة</button>
       </div>
     );
   }

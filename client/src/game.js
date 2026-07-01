@@ -61,6 +61,7 @@ export async function createGame(sectionId, questions, opts = {}) {
     state: 'lobby',
     mode: opts.mode || 'solo',
     teamCount: opts.mode === 'team' ? Math.max(2, Math.min(8, opts.teamCount || 2)) : 0,
+    hideStandings: !!opts.hideStandings,
     createdAt: serverTimestamp(),
   });
   return { pin, sectionTitle: opts.titleOverride || meta.title, questions: list };
@@ -121,6 +122,7 @@ export async function revealAndScore(pin, question, index) {
     updates[`players/${pid}/lastCorrect`] = correct;
     updates[`players/${pid}/answered`] = !!a;
     updates[`players/${pid}/resultIndex`] = index;
+    updates[`players/${pid}/correct`] = (p.correct || 0) + (correct ? 1 : 0);
     roundResults.push({ name: p.name, correct, gain, timeMs, streak });
   }
   updates['reveal'] = {
@@ -249,6 +251,13 @@ export const watchAnswers = (pin, index, cb) =>
 export const toLeaderboard = (playersObj, limit = 50) =>
   Object.values(playersObj || {})
     .map((p) => ({ name: p.name, score: p.score || 0, streak: p.streak || 0 }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+
+// أكثر الأفراد إجابات صحيحة.
+export const topByCorrect = (playersObj, limit = 5) =>
+  Object.values(playersObj || {})
+    .map((p) => ({ name: p.name, score: p.correct || 0 }))
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
 
