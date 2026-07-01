@@ -239,7 +239,9 @@ export default function Player({ onExit, initialPin = '' }) {
       {me?.team && <p className="qr-label">فريقك: {me.team}</p>}
       <p className="big-wait">{sectionTitle}</p>
       <div className="spinner" />
-      <p className="muted">انضممتَ بنجاح! بانتظار أن يبدأ المعلّم اللعبة…</p>
+      <p className="muted">
+        {meta?.state === 'lobby' ? 'انضممتَ بنجاح! بانتظار أن يبدأ المعلّم اللعبة…' : 'انضممتَ بنجاح! بانتظار السؤال التالي…'}
+      </p>
       <LeaveBtn />
     </div>
   );

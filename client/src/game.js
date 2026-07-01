@@ -106,6 +106,7 @@ export async function revealAndScore(pin, question, index) {
     const a = answers[pid];
     const correct = !!a && a.answerIndex === question.correctIndex;
     let gain = 0;
+    let bonus = 0; // مكافأة السلسلة (مخفية عن اللاعب)
     let streak = p.streak || 0;
     const timeMs = a ? Math.max(0, a.at - startAt) : null;
     if (correct) {
@@ -113,11 +114,13 @@ export async function revealAndScore(pin, question, index) {
       const ratio = 1 - elapsed / TIME_LIMIT;
       gain = Math.round(POINTS_BASE * (0.5 + 0.5 * ratio));
       streak += 1;
+      // مكافأة موزونة: 5 × طول السلسلة (سلسلة2=+10، 3=+15، 4=+20…)
+      if (streak >= 2) bonus = 5 * streak;
     } else {
       streak = 0;
     }
-    updates[`players/${pid}/score`] = (p.score || 0) + gain;
-    updates[`players/${pid}/lastGain`] = gain;
+    updates[`players/${pid}/score`] = (p.score || 0) + gain + bonus;
+    updates[`players/${pid}/lastGain`] = gain; // المعروض لا يشمل مكافأة السلسلة
     updates[`players/${pid}/streak`] = streak;
     updates[`players/${pid}/lastCorrect`] = correct;
     updates[`players/${pid}/answered`] = !!a;
@@ -196,13 +199,22 @@ export async function joinGame(pin, name, team) {
   const metaSnap = await get(gref(pin, 'meta'));
   if (!metaSnap.exists()) return { error: 'الرمز غير صحيح' };
   const meta = metaSnap.val();
-  if (meta.state !== 'lobby') return { error: 'بدأت اللعبة بالفعل' };
+  // يُسمح بالدخول في أي وقت (حتى في نص اللعبة).
   // في النمط الجماعي يجب اختيار الفريق أولًا.
   if (meta.mode === 'team' && !team) return { needTeam: true, teamCount: meta.teamCount || 2 };
   const clean = String(name || '').trim().slice(0, 20) || 'لاعب';
+  // عند الدخول في نص اللعبة ضمن فريق: ابدأ بمتوسط الفريق الحالي حتى لا يتغيّر المتوسط.
+  let startScore = 0;
+  if (team) {
+    const players = (await get(gref(pin, 'players'))).val() || {};
+    const members = Object.values(players).filter((p) => p.team === team);
+    if (members.length) {
+      startScore = Math.round(members.reduce((s, p) => s + (p.score || 0), 0) / members.length);
+    }
+  }
   const playerRef = push(gref(pin, 'players'));
   // لا نزيل اللاعب عند الانقطاع؛ ليتمكّن من العودة ومواصلة اللعب بنقاطه.
-  const data = { name: clean, score: 0, streak: 0, joinedAt: serverTimestamp() };
+  const data = { name: clean, score: startScore, streak: 0, correct: 0, joinedAt: serverTimestamp() };
   if (team) data.team = team;
   await set(playerRef, data);
   return { playerId: playerRef.key, sectionTitle: meta.sectionTitle, mode: meta.mode };
