@@ -150,6 +150,14 @@ export async function endGame(pin) {
   await update(gref(pin, 'meta'), { state: 'over' });
 }
 
+// تحكّم حيّ من المضيف أثناء اللعب.
+export async function updateTeamCount(pin, count) {
+  await update(gref(pin, 'meta'), { teamCount: Math.max(2, Math.min(8, count)) });
+}
+export async function updateHideStandings(pin, hide) {
+  await update(gref(pin, 'meta'), { hideStandings: !!hide });
+}
+
 // قراءة حالة اللعبة مرة واحدة (لاستئناف المضيف بعد تحديث الصفحة).
 export async function getGameState(pin) {
   const snap = await get(gref(pin));

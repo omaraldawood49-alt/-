@@ -156,6 +156,52 @@ input.field:focus {
   flex: 1;
 }
 
+/* ===== تحكّم حيّ للمضيف ===== */
+.live-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  margin: 16px auto 6px;
+}
+.chip-btn {
+  border: 2px solid var(--olive);
+  background: #fff;
+  color: var(--olive);
+  border-radius: 30px;
+  padding: 8px 16px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+.chip-teams {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: var(--ink);
+  background: #eceadd;
+  border-radius: 30px;
+  padding: 5px 12px;
+}
+.chip-teams button {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: var(--olive);
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.chip-teams strong {
+  color: var(--olive);
+  min-width: 20px;
+  text-align: center;
+}
+
 /* ===== أزرار تحكّم المضيف ===== */
 .host-controls {
   display: flex;

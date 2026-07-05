@@ -8,6 +8,8 @@ import {
   startAnswering,
   revealAndScore,
   endGame,
+  updateTeamCount,
+  updateHideStandings,
   deleteGame,
   watchPlayers,
   watchAnswers,
@@ -225,6 +227,39 @@ export default function Host({ onExit }) {
     onExit();
   };
 
+  // تحكّم حيّ أثناء اللعب.
+  const persistHost = (patch) =>
+    saveHost({ pin, quiz: questionsRef.current, mode, teamCount, hideStandings, ...patch });
+  const toggleHide = async () => {
+    const v = !hideStandings;
+    setHideStandings(v);
+    persistHost({ hideStandings: v });
+    if (pin) await updateHideStandings(pin, v).catch(() => {});
+  };
+  const bumpTeams = async (delta) => {
+    const v = Math.max(2, Math.min(8, teamCount + delta));
+    if (v === teamCount) return;
+    setTeamCount(v);
+    persistHost({ teamCount: v });
+    if (pin) await updateTeamCount(pin, v).catch(() => {});
+  };
+
+  const liveControls = (
+    <div className="live-controls">
+      <button className="chip-btn" onClick={toggleHide}>
+        {hideStandings ? '👁️ إظهار الترتيب' : '🙈 إخفاء الترتيب'}
+      </button>
+      {mode === 'team' && (
+        <span className="chip-teams">
+          الفِرَق:
+          <button onClick={() => bumpTeams(-1)}>−</button>
+          <strong>{teamCount}</strong>
+          <button onClick={() => bumpTeams(1)}>+</button>
+        </span>
+      )}
+    </div>
+  );
+
   // ===== استئناف بعد التحديث =====
   if (stage === 'resuming') {
     return (
@@ -306,6 +341,7 @@ export default function Host({ onExit }) {
             </span>
           ))}
         </div>
+        {liveControls}
         <button className="btn" disabled={players.length === 0} onClick={() => goQuestion(0)}>
           ابدأ اللعبة ({players.length})
         </button>
@@ -337,6 +373,7 @@ export default function Host({ onExit }) {
         <button className="btn ghost" style={{ maxWidth: 300, margin: '16px auto 0' }} onClick={() => reveal_(index)}>
           كشف الإجابة الآن
         </button>
+        {liveControls}
         <div className="host-controls">
           <button className="btn ghost" onClick={endNow}>🏁 إنهاء اللعبة</button>
           <button className="btn ghost" onClick={quit}>🚪 خروج</button>
@@ -394,6 +431,7 @@ export default function Host({ onExit }) {
         <button className="btn" style={{ maxWidth: 360, margin: '0 auto' }} onClick={next}>
           {reveal.isLast ? 'عرض النتيجة النهائية' : 'السؤال التالي'}
         </button>
+        {liveControls}
         <div className="host-controls">
           {!reveal.isLast && <button className="btn ghost" onClick={endNow}>🏁 إنهاء اللعبة وعرض النتائج</button>}
           <button className="btn ghost" onClick={quit}>🚪 خروج</button>
